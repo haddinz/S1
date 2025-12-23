@@ -1,0 +1,72 @@
+# =====================
+# .NET / ASP.NET Core
+# =====================
+bin/
+obj/
+out/
+
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# =====================
+# Logs
+# =====================
+logs/
+*.log
+
+# =====================
+# Environment files
+# =====================
+.env
+.env.*
+secrets/
+*.secrets.json
+appsettings.*.json
+!appsettings.json
+
+# =====================
+# Docker
+# =====================
+**/Dockerfile.prod
+docker-compose.override.yml
+
+# Docker runtime (NEVER PUSH)
+**/docker-data/
+**/volumes/
+**/*.tar
+
+# =====================
+# Kubernetes (LOCAL ONLY)
+# =====================
+k8s/local/
+*.local.yaml
+
+# =====================
+# OS
+# =====================
+.DS_Store
+Thumbs.db
+
+# =====================
+# IDE
+# =====================
+.vscode/
+.idea/
+*.iml
+*.swp
+
+# =====================
+# Node (jika ada frontend)
+# =====================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# =====================
+# Test artifacts
+# =====================
+TestResults/
+coverage/
