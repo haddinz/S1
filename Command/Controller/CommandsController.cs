@@ -21,12 +21,12 @@ public class CommandsController(
     [HttpGet]
     public ActionResult<IEnumerable<CommandsReadDto>> GetCommandsForPlatfrom(Guid platformId)
     {
-        _logger.LogInformation("==> Hit GetCommandsFromPlatfrom {platformId}", platformId);
+        _logger.LogInformation("--> Hit GetCommandsFromPlatfrom {platformId}", platformId);
 
         if (!_repository.PlatformExist(platformId))
         {
             _logger.LogWarning(
-                "==> PlatformId GetCommandsFromPlatfrom {platformId} Not Found",
+                "--> PlatformId GetCommandsFromPlatfrom {platformId} Not Found",
                 platformId
             );
             return NotFound();
@@ -39,12 +39,12 @@ public class CommandsController(
     [HttpGet("{commandsId}", Name = "GetCommandForPlatform")]
     public ActionResult<CommandsReadDto> GetCommandForPlatform(Guid platformId, Guid commandsId)
     {
-        _logger.LogInformation("==> Hit GetCommandFromPlatfrom {platformId}", platformId);
+        _logger.LogInformation("--> Hit GetCommandFromPlatfrom {platformId}", platformId);
 
         if (!_repository.PlatformExist(platformId))
         {
             _logger.LogWarning(
-                "==> PlatformId GetCommandFromPlatfrom {platformId} / {commandsId} Not Found",
+                "--> PlatformId GetCommandFromPlatfrom {platformId} / {commandsId} Not Found",
                 platformId,
                 commandsId
             );
@@ -55,7 +55,7 @@ public class CommandsController(
         if (commands == null)
         {
             _logger.LogWarning(
-                "==> Commands GetCommandFromPlatform {commands} Not Found",
+                "--> Commands GetCommandFromPlatform {commands} Not Found",
                 commands
             );
             return NotFound();
@@ -70,12 +70,12 @@ public class CommandsController(
         CommandsCreateDto commandsDto
     )
     {
-        _logger.LogInformation("==> Hit CreateCommandsForPlatform {platformId}", platformId);
+        _logger.LogInformation("--> Hit CreateCommandsForPlatform {platformId}", platformId);
 
         if (!_repository.PlatformExist(platformId))
         {
             _logger.LogWarning(
-                "==> PlatformId CreateCommandsForPlatform {platformId} Not Found",
+                "--> PlatformId CreateCommandsForPlatform {platformId} Not Found",
                 platformId
             );
             return NotFound();

@@ -46,8 +46,10 @@ builder.Services.AddGrpc();
 // Automapper service
 builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
 
-// Adding Controller and Swagger Register
+// Adding Controller
 builder.Services.AddControllers();
+
+// Adding Swagger 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 

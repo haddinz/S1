@@ -1,0 +1,19 @@
+  Determining projects to restore...
+/HOUSE/PROJECT/CodeProject/S1/Support.Auth.Id/Support.Auth.Id.csproj : warning NU1903: Package 'AutoMapper' 12.0.1 has a known high severity vulnerability, https://github.com/advisories/GHSA-rvv3-g6hj-g44x [/HOUSE/PROJECT/CodeProject/S1/Support.Auth.Id/Support.Auth.Id.sln]
+  All projects are up-to-date for restore.
+/HOUSE/PROJECT/CodeProject/S1/Support.Auth.Id/Support.Auth.Id.csproj : warning NU1903: Package 'AutoMapper' 12.0.1 has a known high severity vulnerability, https://github.com/advisories/GHSA-rvv3-g6hj-g44x
+/HOUSE/PROJECT/CodeProject/S1/Support.Auth.Id/Repositories/Data/AppDbContext.cs(7,14): error CS0311: The type 'Support.Auth.Id.Models.Entity.User' cannot be used as type parameter 'TUser' in the generic type or method 'IdentityDbContext<TUser>'. There is no implicit reference conversion from 'Support.Auth.Id.Models.Entity.User' to 'Microsoft.AspNetCore.Identity.IdentityUser'. [/HOUSE/PROJECT/CodeProject/S1/Support.Auth.Id/Support.Auth.Id.csproj]
+/HOUSE/PROJECT/CodeProject/S1/Support.Auth.Id/Controller/UserController.cs(39,70): error CS0246: The type or namespace name 'Login' could not be found (are you missing a using directive or an assembly reference?) [/HOUSE/PROJECT/CodeProject/S1/Support.Auth.Id/Support.Auth.Id.csproj]
+/HOUSE/PROJECT/CodeProject/S1/Support.Auth.Id/Controller/UserController.cs(39,55): error CS0246: The type or namespace name 'Login' could not be found (are you missing a using directive or an assembly reference?) [/HOUSE/PROJECT/CodeProject/S1/Support.Auth.Id/Support.Auth.Id.csproj]
+
+Build FAILED.
+
+/HOUSE/PROJECT/CodeProject/S1/Support.Auth.Id/Support.Auth.Id.csproj : warning NU1903: Package 'AutoMapper' 12.0.1 has a known high severity vulnerability, https://github.com/advisories/GHSA-rvv3-g6hj-g44x [/HOUSE/PROJECT/CodeProject/S1/Support.Auth.Id/Support.Auth.Id.sln]
+/HOUSE/PROJECT/CodeProject/S1/Support.Auth.Id/Support.Auth.Id.csproj : warning NU1903: Package 'AutoMapper' 12.0.1 has a known high severity vulnerability, https://github.com/advisories/GHSA-rvv3-g6hj-g44x
+/HOUSE/PROJECT/CodeProject/S1/Support.Auth.Id/Repositories/Data/AppDbContext.cs(7,14): error CS0311: The type 'Support.Auth.Id.Models.Entity.User' cannot be used as type parameter 'TUser' in the generic type or method 'IdentityDbContext<TUser>'. There is no implicit reference conversion from 'Support.Auth.Id.Models.Entity.User' to 'Microsoft.AspNetCore.Identity.IdentityUser'. [/HOUSE/PROJECT/CodeProject/S1/Support.Auth.Id/Support.Auth.Id.csproj]
+/HOUSE/PROJECT/CodeProject/S1/Support.Auth.Id/Controller/UserController.cs(39,70): error CS0246: The type or namespace name 'Login' could not be found (are you missing a using directive or an assembly reference?) [/HOUSE/PROJECT/CodeProject/S1/Support.Auth.Id/Support.Auth.Id.csproj]
+/HOUSE/PROJECT/CodeProject/S1/Support.Auth.Id/Controller/UserController.cs(39,55): error CS0246: The type or namespace name 'Login' could not be found (are you missing a using directive or an assembly reference?) [/HOUSE/PROJECT/CodeProject/S1/Support.Auth.Id/Support.Auth.Id.csproj]
+    2 Warning(s)
+    3 Error(s)
+
+Time Elapsed 00:00:02.88

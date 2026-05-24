@@ -17,3 +17,4 @@ public class PlatformModel
     [Required]
     public string Cost { get; set; } = string.Empty;
 }
+ 

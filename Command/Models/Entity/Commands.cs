@@ -6,16 +6,16 @@ public class Commands
 {
     [Key]
     [Required]
-    public Guid Id {get; set;}
+    public Guid Id { get; set; }
 
     [Required]
-    public string HowTo {get; set;} = string.Empty;
+    public string HowTo { get; set; } = string.Empty;
 
     [Required]
-    public string CommandLine {get; set;} = string.Empty;
+    public string CommandLine { get; set; } = string.Empty;
 
     [Required]
-    public Guid PlatformId {get; set;}
-    
-    public Platform? Platform {get; set;}
+    public Guid PlatformId { get; set; }
+
+    public Platform? Platform { get; set; }
 }

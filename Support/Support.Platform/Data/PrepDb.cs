@@ -7,10 +7,8 @@ public static class PrepDb
 {
     public static void PrepPopulation(IApplicationBuilder app, bool IsProduction)
     {
-        using (var serviceScope = app.ApplicationServices.CreateScope())
-        {
-            SeedData(serviceScope.ServiceProvider.GetService<AppDBContext>()!, IsProduction);
-        }
+        using var serviceScope = app.ApplicationServices.CreateScope();
+        SeedData(serviceScope.ServiceProvider.GetService<AppDBContext>()!, IsProduction);
     }
 
     private static void SeedData(AppDBContext context, bool isProduction)
