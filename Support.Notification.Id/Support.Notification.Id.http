@@ -1,0 +1,6 @@
+@Support.Notification.Id_HostAddress = http://localhost:5150
+
+GET {{Support.Notification.Id_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
