@@ -6,6 +6,7 @@ using Support.Auth.Id.Models.Entity;
 using Support.Auth.Id.Repositories.Interfaces;
 using Support.Auth.Id.Services.Interfaces;
 using Support.Auth.Id.Domain.ValueObject;
+using Microsoft.Extensions.Options;
 
 namespace Support.Auth.Id.Features.Handler.Auth;
 
@@ -27,14 +28,14 @@ public class LoginCommandHandler : ICommandHandler<LoginCommand, AuthResponse>
 
     public LoginCommandHandler(
         ILogger<LoginCommandHandler> logger,
-        JwtSettings jwtSettings,
+        IOptions<JwtSettings> jwtSettings,
         IAuthRepositories authRepo,
         IPasswordHasher passwordHasher,
         ITokenGenerator tokenGenerator
     )
     {
         _logger = logger;
-        _jwtSettings = jwtSettings;
+        _jwtSettings = jwtSettings.Value;
         _authRepo = authRepo;
         _passwordHasher = passwordHasher;
         _tokenGenerator = tokenGenerator;

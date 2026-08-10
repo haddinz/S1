@@ -1,4 +1,5 @@
 using MailKit.Net.Smtp;
+using MailKit.Security;
 using Microsoft.Extensions.Options;
 using MimeKit;
 using Support.Notification.Client.Contract;
@@ -9,17 +10,17 @@ namespace Support.Notification.Client.Id.Services;
 
 public class EmailSenderServices : INotificationClient
 {
-    private readonly Logger<EmailSenderServices> _logger;
+    private readonly ILogger<EmailSenderServices> _logger;
     private readonly SmtpOptions _options;
 
-    public EmailSenderServices(Logger<EmailSenderServices> logger, SmtpOptions options)
+    public EmailSenderServices(ILogger<EmailSenderServices> logger, IOptions<SmtpOptions> options)
     {
         _logger = logger;
-        _options = options;
+        _options = options.Value;
     }
 
     public async Task SendAsync(
-        EmailMessageRequest message,
+        SendEmailRequest message,
         CancellationToken cancellationToken = default
     )
     {
@@ -27,7 +28,7 @@ public class EmailSenderServices : INotificationClient
 
         MimeMessage email = new();
 
-        email.From.Add(new MailboxAddress(_options.FromName, _options.FromEmail));
+        email.From.Add(new MailboxAddress(_options.SenderName, _options.SenderEmail));
         email.To.Add(MailboxAddress.Parse(message.To));
 
         email.Subject = message.Subject;
@@ -44,6 +45,45 @@ public class EmailSenderServices : INotificationClient
         await smtp.AuthenticateAsync(_options.Username, _options.Password, cancellationToken);
         await smtp.SendAsync(email, cancellationToken);
 
+        await smtp.DisconnectAsync(true, cancellationToken);
+    }
+
+    public async Task SendEmailAsync(SendEmailRequest request, CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("--> Hit SendEmailAsync at EmailSenderServices");
+
+        MimeMessage email = new();
+
+        email.From.Add(new MailboxAddress(_options.SenderName, _options.SenderEmail));
+        email.To.Add(MailboxAddress.Parse(request.To));
+
+        email.Subject = request.Subject;
+
+        BodyBuilder bodyBuilder = new()
+        {
+            HtmlBody = request.HTMLBody
+        };
+
+        email.Body = bodyBuilder.ToMessageBody();
+
+        SecureSocketOptions secureSocketOptions = _options.EnableSsl
+            ? SecureSocketOptions.StartTls
+            : SecureSocketOptions.None;
+
+        using SmtpClient smtp = new();
+        await smtp.ConnectAsync(
+            _options.Host,
+            _options.Port,
+            secureSocketOptions,
+            cancellationToken
+        );
+
+        if (!string.IsNullOrWhiteSpace(_options.Username))
+        {
+            await smtp.AuthenticateAsync(_options.Username, _options.Password, cancellationToken);
+        }
+
+        await smtp.SendAsync(email, cancellationToken);
         await smtp.DisconnectAsync(true, cancellationToken);
     }
 }

@@ -1,6 +1,11 @@
+using System.Net;
+using Microsoft.Extensions.Options;
 using Support.Auth.Id.Commons.Command;
 using Support.Auth.Id.Domain.Entity;
+using Support.Auth.Id.Domain.ValueObject;
 using Support.Auth.Id.Exceptions;
+using Support.Auth.Id.Features.Helper;
+using Support.Auth.Id.Models.DTOs;
 using Support.Auth.Id.Models.Entity;
 using Support.Auth.Id.Models.Enum;
 using Support.Auth.Id.Repositories.Interfaces;
@@ -23,16 +28,18 @@ public class RegisterCommandHandler : ICommandHandler<RegisterCommand>
     private readonly IAuthRepositories _authRepo;
     private readonly IPasswordHasher _passwordHasher;
     private readonly IPasswordPolicyValidator _validator;
-    private readonly IEmailSenderServices _emailSender;
+    private readonly IAutEmailServices _emailSender;
     private readonly IEmailVerificationTokenGenerator _emailTokenGenerator;
+    private readonly FrontendSettings _options;
 
     public RegisterCommandHandler(
         ILogger<RegisterCommandHandler> logger,
         IAuthRepositories authRepo,
         IPasswordHasher passwordHasher,
         IPasswordPolicyValidator validator,
-        IEmailSenderServices emailSender,
-        IEmailVerificationTokenGenerator emailTokenGenerator
+        IAutEmailServices emailSender,
+        IEmailVerificationTokenGenerator emailTokenGenerator,
+        IOptions<FrontendSettings> options
     )
     {
         _logger = logger;
@@ -41,6 +48,7 @@ public class RegisterCommandHandler : ICommandHandler<RegisterCommand>
         _validator = validator;
         _emailSender = emailSender;
         _emailTokenGenerator = emailTokenGenerator;
+        _options = options.Value;
     }
 
     public async Task HandleAsync(
@@ -67,17 +75,30 @@ public class RegisterCommandHandler : ICommandHandler<RegisterCommand>
 
         user.AssignRole(roleUser);
 
-        string emailVerivicationToken = _emailTokenGenerator.Generate();
-        user.SetEmailVerificationToken(emailVerivicationToken, DateTime.UtcNow.AddHours(24));
+        EmailVerificationToken emailVerivicationToken = _emailTokenGenerator.Generate();
+        user.SetEmailVerificationToken(
+            emailVerivicationToken.Token,
+            emailVerivicationToken.ExpiresAt
+        );
 
         await _authRepo.AddAsync(user, cancellationToken);
         await _authRepo.SaveChangesAsync(cancellationToken);
+
+        string verificationUrl =
+            $"{_options.BaseUrl.TrimEnd('/')}/verify-email?token={Uri.EscapeDataString(emailVerivicationToken.Token)}";
+
+        var htmlBody = HtmlTemplateEngine.Render("VerivyEmail.html", new()
+        {
+            { "FULL_NAME", user.FullName },
+            { "VERIFICATION_URL", verificationUrl }
+        });
 
         // dont backward, email just sending if save data to db success
         await _emailSender.SendEmailVerificationAsync(
             user.Email,
             user.FullName,
-            emailVerivicationToken
+            htmlBody,
+            emailVerivicationToken.Token
         );
     }
 }

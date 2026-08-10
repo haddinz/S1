@@ -1,6 +1,6 @@
 namespace Support.Auth.Id.Services.Interfaces;
 
-public interface IEmailSenderServices
+public interface IAutEmailServices
 {
-    Task SendEmailVerificationAsync(string email, string fullName, string token);
+    Task SendEmailVerificationAsync(string email, string fullName, string htmlBody, string token);
 }

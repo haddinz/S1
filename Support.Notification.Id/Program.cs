@@ -1,6 +1,4 @@
-using Support.Notification.Client.Contract;
-using Support.Notification.Client.Id.Services;
-using Support.Notification.Id.src.Domain.ValueObject;
+using Support.Notification.Id;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -9,13 +7,14 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddOpenApi();
 
 // Add Option a substitute from Configuration
-builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection(SmtpOptions.SectionName));
+// builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection(SmtpOptions.SectionName));
 
 // Add Repository
 // builder.Services.AddScoped<IAuthRepositories,AuthRepositories>();
 
 // Add Services
-builder.Services.AddScoped<INotificationClient, EmailSenderServices>();
+// builder.Services.AddScoped<INotificationClient, EmailSenderServices>();
+builder.Services.AddNotificationModule(builder.Configuration);
 
 // Add Controller
 builder.Services.AddControllers();

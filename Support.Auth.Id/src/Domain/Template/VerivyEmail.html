@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify Your Email</title>
+</head>
+
+<body style="margin:0; padding:0; background-color:#f4f4f4; font-family:Arial, Helvetica, sans-serif;">
+
+    <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+            <td align="center" style="padding:40px 20px;">
+
+                <table
+                    width="600"
+                    cellpadding="0"
+                    cellspacing="0"
+                    border="0"
+                    style="max-width:600px; background-color:#ffffff; border-radius:8px; padding:40px;">
+
+                    <tr>
+                        <td>
+
+                            <h1 style="margin:0 0 20px 0; font-size:28px; color:#222222;">
+                                Verify Your Email
+                            </h1>
+
+                            <p style="font-size:16px; line-height:1.6; color:#555555;">
+                                Hello {{FULL_NAME}},
+                            </p>
+
+                            <p style="font-size:16px; line-height:1.6; color:#555555;">
+                                Thank you for creating an account.
+                                Please verify your email address by clicking
+                                the button below.
+                            </p>
+
+                            <p style="text-align:center; margin:30px 0;">
+                                <a
+                                    href="{{VERIFICATION_URL}}"
+                                    style="
+                                        display:inline-block;
+                                        padding:14px 24px;
+                                        background-color:#2563eb;
+                                        color:#ffffff;
+                                        text-decoration:none;
+                                        border-radius:6px;
+                                        font-size:16px;
+                                    ">
+                                    Verify Email
+                                </a>
+                            </p>
+
+                            <p style="font-size:14px; line-height:1.6; color:#777777;">
+                                This verification link will expire after 24 hours.
+                            </p>
+
+                            <p style="font-size:14px; line-height:1.6; color:#777777;">
+                                If you did not create this account, you can safely
+                                ignore this email.
+                            </p>
+
+                        </td>
+                    </tr>
+
+                </table>
+
+            </td>
+        </tr>
+    </table>
+
+</body>
+</html>

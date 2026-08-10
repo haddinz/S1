@@ -1,11 +1,12 @@
+using Microsoft.Extensions.Options;
 using Support.Auth.Id.Commons.Command;
 using Support.Auth.Id.Domain.Entity;
+using Support.Auth.Id.Domain.ValueObject;
 using Support.Auth.Id.Exceptions;
 using Support.Auth.Id.Models.DTOs.Response;
 using Support.Auth.Id.Models.Entity;
 using Support.Auth.Id.Repositories.Interfaces;
 using Support.Auth.Id.Services.Interfaces;
-using Support.Auth.Id.Domain.ValueObject;
 
 namespace Support.Auth.Id.Features.Handler.Auth;
 
@@ -22,15 +23,23 @@ public class RefreshTokenCommandHandler : ICommandHandler<RefreshTokenCommand, A
     private readonly IAuthRepositories _authRepo;
     private readonly ITokenGenerator _tokenGenerator;
 
-    public RefreshTokenCommandHandler(ILogger<RefreshTokenCommandHandler> logger, IAuthRepositories authRepo, ITokenGenerator tokenGenerator, JwtSettings jwtSettings)
+    public RefreshTokenCommandHandler(
+        ILogger<RefreshTokenCommandHandler> logger,
+        IAuthRepositories authRepo,
+        ITokenGenerator tokenGenerator,
+        IOptions<JwtSettings> jwtSettings
+    )
     {
         _logger = logger;
         _authRepo = authRepo;
         _tokenGenerator = tokenGenerator;
-        _jwtSettings = jwtSettings;
+        _jwtSettings = jwtSettings.Value;
     }
 
-    public async Task<AuthResponse> HandleAsync(RefreshTokenCommand command, CancellationToken cancellationToken = default)
+    public async Task<AuthResponse> HandleAsync(
+        RefreshTokenCommand command,
+        CancellationToken cancellationToken = default
+    )
     {
         _logger.LogInformation("--> Hit RefreshTokenCommandHandler");
 
