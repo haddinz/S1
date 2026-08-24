@@ -8,6 +8,7 @@ namespace Support.Auth.Id.Domain.Entity;
 public class User : BaseModels
 {
     public string Email { get; private set; } = string.Empty;
+    public string ImmutableEmail { get; private set; } = string.Empty;
     public string FullName { get; private set; } = string.Empty;
     public string UserName { get; private set; } = string.Empty;
     public string PasswordHash { get; private set; } = string.Empty;
@@ -25,6 +26,7 @@ public class User : BaseModels
     // Security sesi and autid
     public Guid SecurityStamp { get; private set; } = Guid.NewGuid();
     public DateTime? LastLoginAt { get; private set; }
+    public PasswordReset? PasswordReset { get; private set; }
 
     public ICollection<Role> Roles { get; private set; } = new List<Role>();
     public ICollection<RefreshToken> RefreshTokens { get; private set; } = new List<RefreshToken>();
@@ -52,6 +54,7 @@ public class User : BaseModels
         return new User
         {
             Email = email.ToLowerInvariant().Trim(),
+            ImmutableEmail = email.ToLowerInvariant().Trim(),
             PasswordHash = passwordHash,
             UserName = userName.Trim(),
             FullName = fullName.Trim(),
@@ -175,17 +178,48 @@ public class User : BaseModels
         SetUpdate();
     }
 
+    public void SetPasswordResetToken(string token, DateTime expiresAt)
+    {
+        if (string.IsNullOrWhiteSpace(token))
+            throw new BusinessValidationException("Password reset token cannot be empty.");
+
+        if (expiresAt <= DateTime.UtcNow)
+            throw new BusinessValidationException(
+                "Password reset expiration must be in the future."
+            );
+
+        PasswordReset = new PasswordReset(token, expiresAt);
+        SetUpdate();
+    }
+
+    public void UsePasswordResetToken(string token)
+    {
+        if (PasswordReset is null)
+            throw new InvalidOperationException("Password reset token not found.");
+
+        if (PasswordReset.IsUsed)
+            throw new InvalidOperationException("Password reset token has already been used.");
+
+        if (PasswordReset.IsExpired)
+            throw new InvalidOperationException("Password reset token expired.");
+
+        if (PasswordReset.Token != token)
+            throw new InvalidOperationException("Password reset token invalid.");
+        
+        PasswordReset!.MarkAsUsed();
+        SetUpdate();
+    }
+
     public void SetEmailVerificationToken(string token, DateTime expiresAt)
     {
         if (IsEmailVerified)
             throw new BusinessValidationException("Email has already been verified.");
 
         EmailVerification = new EmailVerification(token, expiresAt);
-
         SetUpdate();
     }
 
-    public void VerivyEmail(string token)
+    public void VerifyEmail(string token)
     {
         if (IsEmailVerified)
             throw new InvalidOperationException("Email already verified.");

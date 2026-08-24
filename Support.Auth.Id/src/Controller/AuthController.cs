@@ -6,6 +6,7 @@ using Support.Auth.Id.Commons.Command;
 using Support.Auth.Id.Exceptions;
 using Support.Auth.Id.Extention;
 using Support.Auth.Id.Features.Handler.Auth;
+using Support.Auth.Id.Models.DTOs;
 using Support.Auth.Id.Models.DTOs.Request;
 using Support.Auth.Id.Models.DTOs.Response;
 using Support.Auth.Id.Services.Interfaces;
@@ -22,6 +23,8 @@ public sealed class AuthController : ControllerBase
     private readonly ICommandHandler<RefreshTokenCommand, AuthResponse> _refreshTokenHandler;
     private readonly ICommandHandler<ChangesPasswordCommand> _changesPasswordHandler;
     private readonly ICommandHandler<VerifyEmailCommand> _verifyEmailHandler;
+    private readonly ICommandHandler<ResendVerifyEmailCommand> _resendVerification;
+    private readonly ICommandHandler<ForgotPasswordCommand> _forgotPasswordHandler;
 
     public AuthController(
         ICommandHandler<LoginCommand, AuthResponse> loginHandler,
@@ -30,7 +33,9 @@ public sealed class AuthController : ControllerBase
         ICommandHandler<RefreshTokenCommand, AuthResponse> refreshTokenHandler,
         ICommandHandler<ChangesPasswordCommand> changesPassword,
         ICommandHandler<VerifyEmailCommand> verifyEmailHandler
-    )
+,
+        ICommandHandler<ResendVerifyEmailCommand> resendVerification,
+        ICommandHandler<ForgotPasswordCommand> forgotPasswordHandler)
     {
         _loginHandler = loginHandler;
         _logoutHandler = logoutHandler;
@@ -38,6 +43,8 @@ public sealed class AuthController : ControllerBase
         _refreshTokenHandler = refreshTokenHandler;
         _changesPasswordHandler = changesPassword;
         _verifyEmailHandler = verifyEmailHandler;
+        _resendVerification = resendVerification;
+        _forgotPasswordHandler = forgotPasswordHandler;
     }
 
     [HttpPost("register")]
@@ -140,6 +147,24 @@ public sealed class AuthController : ControllerBase
     }
 
     [AllowAnonymous]
+    [HttpPost("change-password/forgot-password")]
+    public async Task<ActionResult> ForgotPassword(ForgotPasswordRequest request, CancellationToken cancellationToken)
+    {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ModelStateExtention.ModelStateResponse(ModelState));
+        }
+
+        ForgotPasswordCommand command = new()
+        {
+            Email = request.Email
+        };
+
+        await _forgotPasswordHandler.HandleAsync(command, cancellationToken);
+        return Ok(ApiResponse.Success("Forgot Password Successfully Send To Email")); 
+    }
+
+    [AllowAnonymous]
     [HttpPost("verify-email")]
     public async Task<ActionResult> VerifyEmail(
         VerifyEmailRequest request,
@@ -155,7 +180,26 @@ public sealed class AuthController : ControllerBase
 
         await _verifyEmailHandler.HandleAsync(command, cancellationToken);
 
-        return Ok(ApiResponse.Success("Ferify Email Successfully"));
+        return Ok(ApiResponse.Success("Verify Email Successfully"));
+    }
+
+    [AllowAnonymous]
+    [HttpPost("verify-email/resend")]
+    public async Task<ActionResult> ResendVerifyEmail(
+        ResendVerifyEmailRequest request,
+        CancellationToken cancellation
+    )
+    {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ModelStateExtention.ModelStateResponse(ModelState));
+        }
+
+        ResendVerifyEmailCommand command = new() { Email = request.Email };
+
+        await _resendVerification.HandleAsync(command);
+
+        return Ok(ApiResponse.Success("Resend Verify Email Successfully"));
     }
 
     [HttpPost("logout")]

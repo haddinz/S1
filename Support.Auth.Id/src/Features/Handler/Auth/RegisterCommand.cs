@@ -1,10 +1,12 @@
 using System.Net;
 using Microsoft.Extensions.Options;
 using Support.Auth.Id.Commons.Command;
+using Support.Auth.Id.Constans;
 using Support.Auth.Id.Domain.Entity;
 using Support.Auth.Id.Domain.ValueObject;
 using Support.Auth.Id.Exceptions;
 using Support.Auth.Id.Features.Helper;
+using Support.Auth.Id.Features.Security;
 using Support.Auth.Id.Models.DTOs;
 using Support.Auth.Id.Models.Entity;
 using Support.Auth.Id.Models.Enum;
@@ -26,25 +28,25 @@ public class RegisterCommandHandler : ICommandHandler<RegisterCommand>
 {
     private readonly ILogger<RegisterCommandHandler> _logger;
     private readonly IAuthRepositories _authRepo;
-    private readonly IPasswordHasher _passwordHasher;
+    private readonly IAppHasher _appHasher;
     private readonly IPasswordPolicyValidator _validator;
-    private readonly IAutEmailServices _emailSender;
-    private readonly IEmailVerificationTokenGenerator _emailTokenGenerator;
+    private readonly IAuthEmailServices _emailSender;
+    private readonly ISecureTokenGenerator<EmailVerificationToken> _emailTokenGenerator;
     private readonly FrontendSettings _options;
 
     public RegisterCommandHandler(
         ILogger<RegisterCommandHandler> logger,
         IAuthRepositories authRepo,
-        IPasswordHasher passwordHasher,
+        IAppHasher appHasher,
         IPasswordPolicyValidator validator,
-        IAutEmailServices emailSender,
-        IEmailVerificationTokenGenerator emailTokenGenerator,
+        IAuthEmailServices emailSender,
+        ISecureTokenGenerator<EmailVerificationToken> emailTokenGenerator,
         IOptions<FrontendSettings> options
     )
     {
         _logger = logger;
         _authRepo = authRepo;
-        _passwordHasher = passwordHasher;
+        _appHasher = appHasher;
         _validator = validator;
         _emailSender = emailSender;
         _emailTokenGenerator = emailTokenGenerator;
@@ -58,40 +60,41 @@ public class RegisterCommandHandler : ICommandHandler<RegisterCommand>
     {
         _logger.LogInformation("--> Hit RegisterCommandHandler at AuthServices");
 
-        User? existingEmail = await _authRepo.GetUserByEmailAsync(command.Email, cancellationToken);
-        if (existingEmail is not null)
-        {
+        if (await _authRepo.IsUserEmailExists(command.Email, cancellationToken))
             throw new ConflictException("Email already exists");
-        }
 
-        _validator.Validate(command.Password);
-        string passwordHash = _passwordHasher.HashPassword(command.Password);
+        if (await _authRepo.IsUsernameExists(command.UserName, cancellationToken))
+            throw new ConflictException("Username already use");
+
+        // stop first for testing app register
+        // _validator.Validate(command.Password);
+        string passwordHash = _appHasher.Hash(command.Password);
 
         User user = User.Register(command.Email, command.FullName, command.UserName, passwordHash);
 
         Role? roleUser =
             await _authRepo.GetUserByRoleAsync(RoleEnum.User.ToString(), cancellationToken)
             ?? throw new NotFoundException("Default role not found.");
-
         user.AssignRole(roleUser);
 
         EmailVerificationToken emailVerivicationToken = _emailTokenGenerator.Generate();
-        user.SetEmailVerificationToken(
-            emailVerivicationToken.Token,
-            emailVerivicationToken.ExpiresAt
-        );
+        string tokenHash = _appHasher.Hash(emailVerivicationToken.Token);
+
+        user.SetEmailVerificationToken(tokenHash, emailVerivicationToken.ExpiresAt);
 
         await _authRepo.AddAsync(user, cancellationToken);
         await _authRepo.SaveChangesAsync(cancellationToken);
 
+        _logger.LogInformation("--> Verivication base url at {BaseUrl}", _options.BaseUrl);
         string verificationUrl =
             $"{_options.BaseUrl.TrimEnd('/')}/verify-email?token={Uri.EscapeDataString(emailVerivicationToken.Token)}";
 
-        var htmlBody = HtmlTemplateEngine.Render("VerivyEmail.html", new()
-        {
-            { "FULL_NAME", user.FullName },
-            { "VERIFICATION_URL", verificationUrl }
-        });
+        // string verifyTemplate = $"{TemplateEnum.VerifyEmail}.html";
+        string verifyTemplate = Template.VerifyEmail;
+        string htmlBody = HtmlTemplateEngine.Render(
+            verifyTemplate,
+            new() { { "FULL_NAME", user.FullName }, { "VERIFICATION_URL", verificationUrl } }
+        );
 
         // dont backward, email just sending if save data to db success
         await _emailSender.SendEmailVerificationAsync(

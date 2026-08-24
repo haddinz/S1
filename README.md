@@ -38,3 +38,13 @@ dotnet user-secrets set "Smtp:Password" "password"
 dotnet user-secrets set "Smtp:SenderName" "Support"
 dotnet user-secrets set "Smtp:SenderEmail" "no-replaysupport@example.com"
 dotnet user-secrets set "Smtp:EnableSsl" "true"
+
+# 2. Set konfigurasi SMTP for Mailpit testing
+dot3et user-secrets list
+Smtp:Username = 
+Smtp:SenderName = Support
+Smtp:SenderEmail = no-reply@support.local
+Smtp:Port = 1025
+Smtp:Password = 
+Smtp:Host = localhost
+Smtp:EnableSsl = false

@@ -10,6 +10,7 @@ using Support.Auth.Id.Features.Security;
 using Support.Auth.Id.Services;
 using Support.Notification.Client.Contract;
 using Support.Notification.Client.Id.Services;
+using Support.Auth.Id.Models.DTOs;
 
 namespace Support.Auth.Id;
 
@@ -22,7 +23,7 @@ public static class DependencyInjection
     )
     {
         // Add Authentication and Authorization User and Password (costum)
-        services.AddScoped<IPasswordHasher, PasswordHasher>();
+        services.AddScoped<IAppHasher, AppHasher>();
         services.AddScoped<ITokenGenerator, TokenGenerator>();
 
         // Add Repository
@@ -30,11 +31,9 @@ public static class DependencyInjection
 
         // Add Security Services
         services.AddScoped<IPasswordPolicyValidator, PasswordPolicyValidator>();
-        services.AddScoped<
-            IEmailVerificationTokenGenerator,
-            EmailVerificationTokenGenerator
-        >();
-        services.AddScoped<IAutEmailServices, AutEmailServices>();
+        services.AddScoped<ISecureTokenGenerator<EmailVerificationToken>, EmailTokenGenerator>();
+        services.AddScoped<ISecureTokenGenerator<PasswordResetToken>, PasswordReserTokenGenerator>();
+        services.AddScoped<IAuthEmailServices, AuthEmailServices>();
 
         // Add Handler User
         services.AddScoped<ICommandQueryHandler<GetActiveUserQuery, UserProfileResponse>,GetActiveUserQueryHandler>();
@@ -48,6 +47,8 @@ public static class DependencyInjection
         services.AddScoped<ICommandHandler<RefreshTokenCommand, AuthResponse>,RefreshTokenCommandHandler>();
         services.AddScoped<ICommandHandler<ChangesPasswordCommand>,ChangesPasswordCommandHandler>();
         services.AddScoped<ICommandHandler<VerifyEmailCommand>,VerifyEmailCommandHandler>();
+        services.AddScoped<ICommandHandler<ResendVerifyEmailCommand>, ResendVerifyEmailCommandHandler>();
+        services.AddScoped<ICommandHandler<ForgotPasswordCommand>, ForgotPasswordCommandHandler>();
 
         // Add Client Services
         services.AddScoped<INotificationClient, EmailSenderServices>();

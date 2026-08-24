@@ -28,6 +28,6 @@
     <ProjectReference Include="..\Support.Notification.Id\Support.Notification.Id.csproj" />
     <ProjectReference Include="..\Support.Notification.Client\Support.Notification.Client.csproj" />
     
-    <EmbeddedResource Include="src\Domain\Template\VerivyEmail.html" />
+    <EmbeddedResource Include="src\Domain\Templates\**\*" />
   </ItemGroup>
 </Project>

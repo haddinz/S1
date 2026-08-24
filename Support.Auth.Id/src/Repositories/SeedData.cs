@@ -15,8 +15,8 @@ public class SeedData
         using var scope = serviceProvider.CreateScope();
         AppDbContext context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-        IPasswordHasher passwordHasher =
-            scope.ServiceProvider.GetRequiredService<IPasswordHasher>();
+        IAppHasher AppHasher =
+            scope.ServiceProvider.GetRequiredService<IAppHasher>();
 
         ILogger<SeedData> logger = scope.ServiceProvider.GetRequiredService<ILogger<SeedData>>();
 
@@ -60,7 +60,7 @@ public class SeedData
                     role.RoleName == RoleEnum.Admin.ToString()
                 );
 
-                string passwordHash = passwordHasher.HashPassword(password);
+                string passwordHash = AppHasher.Hash(password);
 
                 User adminUser = User.Register(
                     email: adminEmail,
@@ -88,7 +88,7 @@ public class SeedData
                     role.RoleName == RoleEnum.User.ToString()
                 );
 
-                string passwordHash = passwordHasher.HashPassword(password);
+                string passwordHash = AppHasher.Hash(password);
 
                 User normalUser = User.Register(
                     email: userEmail,

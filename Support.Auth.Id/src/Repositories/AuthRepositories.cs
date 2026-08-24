@@ -99,11 +99,10 @@ public class AuthRepositories : IAuthRepositories
         IQueryable<User> queryUser = _context.Users.AsNoTracking();
         int totalRecords = await queryUser.CountAsync();
 
-        List<User> users = await queryUser
-            .OrderBy(x => x.CreatedAt)
-            .Skip((pageNumber - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync();
+        List<User> users =
+        [
+            .. queryUser.OrderBy(x => x.CreatedAt).Skip((pageNumber - 1) * pageSize).Take(pageSize),
+        ];
 
         return (users, totalRecords);
     }
@@ -124,8 +123,42 @@ public class AuthRepositories : IAuthRepositories
         return user;
     }
 
+    public async Task<User?> GetUserByPasswordResetTokenAsync(string token, CancellationToken cancellationToken)
+    {
+        User? user = await _context.Users
+            .Include(x => x.Roles)
+            .Include(x => x.RefreshTokens)
+            .FirstOrDefaultAsync(x => x.PasswordReset != null && x.PasswordReset.Token == token, cancellationToken);
+        
+        return user;
+    }
+
+    public async Task<bool> IsUserEmailExists(
+        string email,
+        CancellationToken cancellationToken = default
+    )
+    {
+        bool emailExists = await _context.Users.AnyAsync(x => x.Email == email, cancellationToken);
+
+        return emailExists;
+    }
+
+    public async Task<bool> IsUsernameExists(
+        string username,
+        CancellationToken cancellationToken = default
+    )
+    {
+        bool usernameExists = await _context.Users.AnyAsync(
+            x => x.UserName == username,
+            cancellationToken
+        );
+
+        return usernameExists;
+    }
+
     public async Task SaveChangesAsync(CancellationToken cancellationToken = default)
     {
         await _context.SaveChangesAsync(cancellationToken);
     }
 }
+

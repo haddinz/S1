@@ -19,12 +19,14 @@ public class ChangesPasswordCommandHandler : ICommandHandler<ChangesPasswordComm
     private readonly ILogger<ChangesPasswordCommandHandler> _logger;
     private readonly IAuthRepositories _authRepo;
     private readonly IPasswordPolicyValidator _validator;
+    private readonly IAppHasher _appHasher;
 
-    public ChangesPasswordCommandHandler(ILogger<ChangesPasswordCommandHandler> logger, IAuthRepositories authRepo, IPasswordPolicyValidator validator)
+    public ChangesPasswordCommandHandler(ILogger<ChangesPasswordCommandHandler> logger, IAuthRepositories authRepo, IPasswordPolicyValidator validator, IAppHasher appHasher)
     {
         _logger = logger;
         _authRepo = authRepo;
         _validator = validator;
+        _appHasher = appHasher;
     }
 
     public async Task HandleAsync(ChangesPasswordCommand command, CancellationToken cancellationToken = default)
@@ -37,13 +39,13 @@ public class ChangesPasswordCommandHandler : ICommandHandler<ChangesPasswordComm
 
         user.ValidateLogin();
 
-        bool isValidPassword = BCrypt.Net.BCrypt.Verify(command.Password, user.PasswordHash);
+        bool isValidPassword = _appHasher.Verify(command.Password, user.PasswordHash);
         if (!isValidPassword)
             throw new UnauthorizedException("Current password Invalid");
 
         _validator.Validate(command.NewPassword);
 
-        string newPasswordHash = BCrypt.Net.BCrypt.HashPassword(command.Password);
+        string newPasswordHash = _appHasher.Hash(command.Password);
 
         user.ChangePassword(newPasswordHash);
         user.ForceLogoutAllDevices(command.IpAddress);

@@ -4,7 +4,7 @@ public sealed class EmailVerification
 {
     public string Token { get; private set; } = string.Empty;
 
-    public DateTime ExpiresAt { get; private set; }
+    public DateTime? ExpiresAt { get; private set; }
 
     public DateTime? VerifiedAt { get; private set; }
 
@@ -20,6 +20,7 @@ public sealed class EmailVerification
 
     internal void Verify()
     {
+        ExpiresAt = null;
         VerifiedAt = DateTime.UtcNow;
         Token = string.Empty;
     }

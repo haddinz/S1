@@ -18,9 +18,11 @@ var builder = WebApplication.CreateBuilder(args);
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
-// Add Connection Database
+// Add Connection InMemory Database
 // Console.WriteLine("--> Using InMemory Database");
 // builder.Services.AddDbContext<AppDbContext>(opt => opt.UseInMemoryDatabase("AuthMemory"));
+
+// Add Connection PostgresSQL Database
 Console.WriteLine("--> Support Auth Using PostgresSql Database");
 builder.Services.AddDbContext<AppDbContext>(opt =>
     opt.UseNpgsql(builder.Configuration.GetConnectionString("PostgresConn"))
@@ -31,6 +33,11 @@ builder.Services.AddDbContext<AppDbContext>(opt =>
 builder.Services
     .AddOptions<JwtSettings>()
     .Bind(builder.Configuration.GetSection(JwtSettings.SectionName))
+    .ValidateOnStart();
+
+builder.Services
+    .AddOptions<FrontendSettings>()
+    .Bind(builder.Configuration.GetSection(FrontendSettings.SectionName))
     .ValidateOnStart();
 
 // Add disable ModelState Behaviour

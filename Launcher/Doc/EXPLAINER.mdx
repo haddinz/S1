@@ -27,6 +27,7 @@ dotnet add package Microsoft.EntityFrameworkCore --version 9.0.0
 ==> migrations
 dotnet ef migrations add Init
 dotnet ef migrations add -o src/Init => jika migration mau diletakan dalam folder tertentu
+example migration => dotnet ef migrations add -o src/Migrations AddForgotPasswordShcema
 dotnet ef database update
 
 RPC = Remote Procedure Call
@@ -342,11 +343,28 @@ Ingat listen port harus sesuaikan dengan port Kube
 kalau deployment samakan saja dengan server listennya dimana (cek Properties)
 
 
+============================================================== % Outbox + Background Worker % ====================================================================
+
+
+Case menggunakan Outbox dan Background Worker
+- Melibatkan Third Party Service
+  Kirim email verifikasi, upload file ke AWS S3, notifikasi push ke Firebase.
+  Menggunakan system luar yang bisa gagal sewaktu-waktu.
+
+- Melibatkan Database Lain / Service Lain
+  Ada perubahan data yang harus disinkronisasi ke sistem lain secara eventual (Microservices)
+
+- Butuh Retry Mechanism
+  Panggilan API ke sistem pihak ketiga yang kadang timeout.
+  Bisa jika dicoba ulang, tapi mahal bandwidth
+
+
 ============================================================== % Best Practice Coding % ====================================================================
 
 
 Lazi Initialisasi sebuah design system yang membuat object yang kita buat akan masuk kememory hanya saat kita berikan action.
 Karna pada dasarnya ketika object dibuat ia akan secara otomatis akan dimasukan ke memory ketika first render / load.
+(sudah dihandle dengan AddScope<>)
 
 Lazy Initialisasi seperti yang kau temui tidak semua skenarion cocok menggunakan itu.
 
@@ -364,14 +382,17 @@ Ingat perbedaan
 
 - AddScope<>() = Jika service sering dipakai dan perlu operasi baru setiap kali direquest
 - AddSingleton<>() = connection, message broker, TCP atau object yang mahal untuk dibuat dan harus sekali
+- HostedService Backgroud Service
 
-Jika class merupakan Singleton dan ingin menggunakan class Scope
-harap menggunakan IServiceScopeFactory
+Jika class merupakan Singleton dan ingin menggunakan (inject) class Scope
+harap menggunakan IServiceScopeFactory.
+Aturan Ketat .NET: Anda tidak boleh menyuntikkan (inject) Service Scoped langsung ke dalam konstruktor Service Singleton. 
+Jika dilakukan, aplikasi Anda akan crash saat dinyalakan (Dependency Injection Validation Error).
 
 using IServiceScope scope = \_scopeFactory.CreateScope();
 ICommandsRepo repo = scope.ServiceProvider.GetRequiredService<ICommandsRepo>();
 
-Event itu artinya datanya udah ada dan real.
+Event itu artinya datanya udah ada dan real.Aturan Ketat .NET: Anda tidak boleh menyuntikkan (inject) Service Scoped langsung ke dalam konstruktor Service Singleton. Jika dilakukan, aplikasi Anda akan crash saat dinyalakan (Dependency Injection Validation Error).
 
 Usahakan repo.SaveChanges() jangan berada di dalam looping.
 

@@ -4,9 +4,9 @@ using Support.Auth.Id.Services.Interfaces;
 
 namespace Support.Auth.Id.Features.Security;
 
-public class EmailVerificationTokenGenerator : IEmailVerificationTokenGenerator
+public class PasswordReserTokenGenerator : ISecureTokenGenerator<PasswordResetToken>
 {
-    public EmailVerificationToken Generate()
+    public PasswordResetToken Generate()
     {
         // Previously
         // return Convert.ToHexString(RandomNumberGenerator.GetBytes(64));
@@ -14,6 +14,6 @@ public class EmailVerificationTokenGenerator : IEmailVerificationTokenGenerator
         Span<byte> bytes = stackalloc byte[32];
         RandomNumberGenerator.Fill(bytes);
 
-        return new EmailVerificationToken(Convert.ToHexString(bytes), DateTime.UtcNow.AddHours(24));
+        return new PasswordResetToken(Convert.ToHexString(bytes), DateTime.UtcNow.AddHours(1));
     }
 }

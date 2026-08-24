@@ -23,21 +23,21 @@ public class LoginCommandHandler : ICommandHandler<LoginCommand, AuthResponse>
     private readonly ILogger<LoginCommandHandler> _logger;
     private readonly JwtSettings _jwtSettings;
     private readonly IAuthRepositories _authRepo;
-    private readonly IPasswordHasher _passwordHasher;
+    private readonly IAppHasher _appHasher;
     private readonly ITokenGenerator _tokenGenerator;
 
     public LoginCommandHandler(
         ILogger<LoginCommandHandler> logger,
         IOptions<JwtSettings> jwtSettings,
         IAuthRepositories authRepo,
-        IPasswordHasher passwordHasher,
+        IAppHasher appHasher,
         ITokenGenerator tokenGenerator
     )
     {
         _logger = logger;
         _jwtSettings = jwtSettings.Value;
         _authRepo = authRepo;
-        _passwordHasher = passwordHasher;
+        _appHasher = appHasher;
         _tokenGenerator = tokenGenerator;
     }
 
@@ -51,7 +51,7 @@ public class LoginCommandHandler : ICommandHandler<LoginCommand, AuthResponse>
 
         user.ValidateLogin();
 
-        bool passwordValid = _passwordHasher.VerifyPassword(command.Password, user.PasswordHash);
+        bool passwordValid = _appHasher.Verify(command.Password, user.PasswordHash);
         if (!passwordValid)
         {
             user.IncrementAccessFailed();
