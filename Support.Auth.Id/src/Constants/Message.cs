@@ -9,4 +9,11 @@ public static class Message
         public const string Completed = "Completed";
         public const string Failed = "Failed";
     }
+
+    public static class Type
+    {
+        public const string ForgotPassword = "FogotPasswordEmail";
+        public const string VerifyAccount = "VerifyAccountEmail";
+        public const string Reminder = "ReminderEmail";
+    }
 }

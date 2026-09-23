@@ -2,7 +2,7 @@ using Support.Auth.Id.Models.DTOs;
 
 namespace Support.Auth.Id.Services.Interfaces;
 
-public interface ISecureTokenGenerator<T> where T : class
+public interface ISecureTokenGenerator<T>
 {
-    T Generate();
+    SecureTokenGenerator<T> Generate(TimeSpan expiryDuration);
 }

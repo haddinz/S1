@@ -1,4 +1,3 @@
-using System.Net;
 using Microsoft.Extensions.Options;
 using Support.Auth.Id.Commons.Command;
 using Support.Auth.Id.Constans;
@@ -6,7 +5,6 @@ using Support.Auth.Id.Domain.Entity;
 using Support.Auth.Id.Domain.ValueObject;
 using Support.Auth.Id.Exceptions;
 using Support.Auth.Id.Features.Helper;
-using Support.Auth.Id.Features.Security;
 using Support.Auth.Id.Models.DTOs;
 using Support.Auth.Id.Models.Entity;
 using Support.Auth.Id.Models.Enum;
@@ -77,7 +75,7 @@ public class RegisterCommandHandler : ICommandHandler<RegisterCommand>
             ?? throw new NotFoundException("Default role not found.");
         user.AssignRole(roleUser);
 
-        EmailVerificationToken emailVerivicationToken = _emailTokenGenerator.Generate();
+        SecureTokenGenerator<EmailVerificationToken> emailVerivicationToken = _emailTokenGenerator.Generate(TimeSpan.FromMinutes(30));
         string tokenHash = _appHasher.Hash(emailVerivicationToken.Token);
 
         user.SetEmailVerificationToken(tokenHash, emailVerivicationToken.ExpiresAt);
@@ -90,7 +88,7 @@ public class RegisterCommandHandler : ICommandHandler<RegisterCommand>
             $"{_options.BaseUrl.TrimEnd('/')}/verify-email?token={Uri.EscapeDataString(emailVerivicationToken.Token)}";
 
         // string verifyTemplate = $"{TemplateEnum.VerifyEmail}.html";
-        string verifyTemplate = Template.VerifyEmail;
+        string verifyTemplate = Template.Objects.VerifyEmail;
         string htmlBody = HtmlTemplateEngine.Render(
             verifyTemplate,
             new() { { "FULL_NAME", user.FullName }, { "VERIFICATION_URL", verificationUrl } }

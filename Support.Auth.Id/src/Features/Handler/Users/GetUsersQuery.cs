@@ -27,13 +27,14 @@ public class GetUsersQueryHandler : ICommandQueryHandler<GetUsersQuery, PagedRes
         _authRepo = authRepo;
     }
     
-    public async Task<PagedResponse<UserProfileResponse>> HandleAsync(GetUsersQuery query, CancellationToken cancellationToken = default)
+    public async Task<PagedResponse<UserProfileResponse>> HandleAsync(GetUsersQuery query, CancellationToken cancellationToken)
     {
         _logger.LogInformation("--> Hit GetUsersQueryHandler");
 
         (IReadOnlyList<User> users, int totalRecords) = await _authRepo.GetPagedUsersAsync(
             query.Request.PageNumber,
-            query.Request.PageSize
+            query.Request.PageSize,
+            cancellationToken
         );
 
         List<UserProfileResponse> result =

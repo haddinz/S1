@@ -4,16 +4,18 @@ using Support.Auth.Id.Services.Interfaces;
 
 namespace Support.Auth.Id.Features.Security;
 
-public class EmailTokenGenerator : ISecureTokenGenerator<EmailVerificationToken>
+public class EmailTokenGenerator<T> : ISecureTokenGenerator<T> where T : class
 {
-    public EmailVerificationToken Generate()
+    public EmailTokenGenerator() { }
+
+    public SecureTokenGenerator<T> Generate(TimeSpan expiryDuration)
     {
-        // Previously
-        // return Convert.ToHexString(RandomNumberGenerator.GetBytes(64));
-
         Span<byte> bytes = stackalloc byte[32];
-        RandomNumberGenerator.Fill(bytes);
+        System.Security.Cryptography.RandomNumberGenerator.Fill(bytes);
+        
+        string tokenValue = Convert.ToHexString(bytes);
+        DateTime expiryTime = DateTime.UtcNow.Add(expiryDuration);
 
-        return new EmailVerificationToken(Convert.ToHexString(bytes), DateTime.UtcNow.AddHours(24));
+        return new SecureTokenGenerator<T>(tokenValue, expiryTime);
     }
 }

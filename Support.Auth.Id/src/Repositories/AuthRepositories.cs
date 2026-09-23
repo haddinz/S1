@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Support.Auth.Id.Domain.Entity;
 using Support.Auth.Id.Models.Entity;
 using Support.Auth.Id.Repositories.Interfaces;
@@ -6,14 +7,10 @@ using Support.Auth.Id.Repository.Data;
 
 namespace Support.Auth.Id.Repositories;
 
-public class AuthRepositories : IAuthRepositories
+public class AuthRepositories : BaseRepositories, IAuthRepositories
 {
-    private readonly AppDbContext _context;
-
     public AuthRepositories(AppDbContext dbContext)
-    {
-        _context = dbContext;
-    }
+        : base(dbContext) { }
 
     public async Task AddAsync(User user, CancellationToken cancellationToken = default)
     {
@@ -93,16 +90,18 @@ public class AuthRepositories : IAuthRepositories
 
     public async Task<(IReadOnlyList<User> Users, int TotalPages)> GetPagedUsersAsync(
         int pageNumber,
-        int pageSize
+        int pageSize,
+        CancellationToken cancellationToken
     )
     {
         IQueryable<User> queryUser = _context.Users.AsNoTracking();
-        int totalRecords = await queryUser.CountAsync();
+        int totalRecords = await queryUser.CountAsync(cancellationToken);
 
-        List<User> users =
-        [
-            .. queryUser.OrderBy(x => x.CreatedAt).Skip((pageNumber - 1) * pageSize).Take(pageSize),
-        ];
+        List<User> users = await queryUser
+            .OrderBy(x => x.CreatedAt)
+            .Skip((pageNumber - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
 
         return (users, totalRecords);
     }
@@ -123,13 +122,19 @@ public class AuthRepositories : IAuthRepositories
         return user;
     }
 
-    public async Task<User?> GetUserByPasswordResetTokenAsync(string token, CancellationToken cancellationToken)
+    public async Task<User?> GetUserByPasswordResetTokenAsync(
+        string token,
+        CancellationToken cancellationToken
+    )
     {
-        User? user = await _context.Users
-            .Include(x => x.Roles)
+        User? user = await _context
+            .Users.Include(x => x.Roles)
             .Include(x => x.RefreshTokens)
-            .FirstOrDefaultAsync(x => x.PasswordReset != null && x.PasswordReset.Token == token, cancellationToken);
-        
+            .FirstOrDefaultAsync(
+                x => x.PasswordReset != null && x.PasswordReset.Token == token,
+                cancellationToken
+            );
+
         return user;
     }
 
@@ -155,10 +160,4 @@ public class AuthRepositories : IAuthRepositories
 
         return usernameExists;
     }
-
-    public async Task SaveChangesAsync(CancellationToken cancellationToken = default)
-    {
-        await _context.SaveChangesAsync(cancellationToken);
-    }
 }
-

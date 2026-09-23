@@ -1,11 +1,9 @@
-using System;
-using System.Collections.Generic;
 using Support.Auth.Id.Models.Entity;
 using Support.Auth.Id.Domain.Entity;
 
 namespace Support.Auth.Id.Repositories.Interfaces;
 
-public interface IAuthRepositories
+public interface IAuthRepositories : IBaseRepositories
 {
     Task<User?> GetUserByIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<User?> GetUserByEmailAsync(string email, CancellationToken cancellationToken = default);
@@ -18,9 +16,8 @@ public interface IAuthRepositories
     Task AddAsync(User user, CancellationToken cancellationToken = default);
     Task UpdateAsync(User user, CancellationToken cancellationToken = default);
     Task<RefreshToken?> GetRefreshTokenAsync(string token, CancellationToken cancellationToken = default);
-    Task SaveChangesAsync(CancellationToken cancellationToken = default);
 
-    Task<(IReadOnlyList<User> Users, int TotalPages)> GetPagedUsersAsync(int pageNumber, int pageSize);
+    Task<(IReadOnlyList<User> Users, int TotalPages)> GetPagedUsersAsync(int pageNumber, int pageSize, CancellationToken cancellation = default);
 
     Task<User?> GetUserByEmailVerificationTokenAsync(string token, CancellationToken cancellationToken = default);
     Task<User?> GetUserByPasswordResetTokenAsync(string token, CancellationToken cancellationToken = default);

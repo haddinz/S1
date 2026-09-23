@@ -1,3 +1,4 @@
+using Support.Auth.Id.Models;
 using Support.Auth.Id.Services.Interfaces;
 using Support.Notification.Client.Contract;
 using Support.Notification.Client.DTOs.Request;
@@ -15,21 +16,30 @@ public class AuthEmailServices : IAuthEmailServices
         _notificationClient = notificationClient;
     }
 
-    public async Task SendEmailVerificationAsync(string email, string fullName, string HTMLBody, string token)
+    public async Task SendEmailAsync(AuthSendEmail email, CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("--> Hit SendEmailAsync at AuthEmailServices");
+
+        await _notificationClient.SendEmailAsync
+        (
+            new SendEmailRequest
+            {
+                To = email.To,
+                Subject = email.Subject,
+                HTMLBody = email.HTMLBody
+            },
+            cancellationToken
+        );
+    }
+
+    public async Task SendEmailVerificationAsync(string email, string fullName, string HTMLBody, string token, CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("--> Hit SendEmailVerificationAsync at AuthEmailServices");
 
-        await SendEmailAsync(email, fullName, HTMLBody, token);
+        await SendEmailAsync(email, HTMLBody, cancellationToken);
     }
 
-    public async Task SendForgotPasswordAsync(string email, string fullName, string HTMLBody, string token)
-    {
-        _logger.LogInformation("--> Hit SendEmailForgotPassword at AuthEmailServices");
-
-        await SendEmailAsync(email, fullName, HTMLBody, token);
-    }
-
-    private async Task SendEmailAsync(string email, string fullName, string HTMLBody, string token)
+    private async Task SendEmailAsync(string email, string HTMLBody, CancellationToken cancellationToken = default)
     {
         await _notificationClient.SendEmailAsync
         (
@@ -38,7 +48,8 @@ public class AuthEmailServices : IAuthEmailServices
                 To = email,
                 Subject = "Verify Email",
                 HTMLBody = HTMLBody
-            }
+            },
+            cancellationToken
         );
     }
 }

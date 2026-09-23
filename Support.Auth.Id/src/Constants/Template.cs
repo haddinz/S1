@@ -1,13 +1,16 @@
 namespace Support.Auth.Id.Constans;
 
-public struct TemplateObject
+public static class Template
 {
-    public const string VerifyEmail = "VerifyEmail.html";
-    public const string ForgotPassword = "ForgotPassword.html";
-}
+    public static class Objects
+    {
+        public const string VerifyEmail = "VerifyEmail.html";
+        public const string ForgotPassword = "ForgotPassword.html";
+    }
 
-public struct TemplateKeys
-{
-    public const string FullName = "FULL_NAME";
-    public const string URL = "VERIFICATION_URL";
+    public static class Keys
+    {
+        public const string FullName = "FULL_NAME";
+        public const string URL = "VERIFICATION_URL";
+    }
 }

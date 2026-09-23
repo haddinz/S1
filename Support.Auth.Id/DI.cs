@@ -11,6 +11,7 @@ using Support.Auth.Id.Services;
 using Support.Notification.Client.Contract;
 using Support.Notification.Client.Id.Services;
 using Support.Auth.Id.Models.DTOs;
+using Support.Auth.Id.Services.BackgroundServices;
 
 namespace Support.Auth.Id;
 
@@ -22,6 +23,9 @@ public static class DependencyInjection
         IConfiguration configuration
     )
     {
+        // Add Hangfire Background Services
+        services.AddScoped<IEmailBackgroundServices, EmailBackgroundServices>();
+
         // Add Authentication and Authorization User and Password (costum)
         services.AddScoped<IAppHasher, AppHasher>();
         services.AddScoped<ITokenGenerator, TokenGenerator>();
@@ -31,8 +35,7 @@ public static class DependencyInjection
 
         // Add Security Services
         services.AddScoped<IPasswordPolicyValidator, PasswordPolicyValidator>();
-        services.AddScoped<ISecureTokenGenerator<EmailVerificationToken>, EmailTokenGenerator>();
-        services.AddScoped<ISecureTokenGenerator<PasswordResetToken>, PasswordReserTokenGenerator>();
+        services.AddScoped(typeof(ISecureTokenGenerator<>), typeof(EmailTokenGenerator<>));
         services.AddScoped<IAuthEmailServices, AuthEmailServices>();
 
         // Add Handler User

@@ -52,7 +52,7 @@ public class ResendVerifyEmailCommandHandler : ICommandHandler<ResendVerifyEmail
         if (user.IsEmailVerified)
             throw new ConflictException("User with this email already verified.");
 
-        EmailVerificationToken emailVerificationToken = _emailTokenGenerator.Generate();
+        SecureTokenGenerator<EmailVerificationToken> emailVerificationToken = _emailTokenGenerator.Generate(TimeSpan.FromMinutes(30));
         user.SetEmailVerificationToken(
             emailVerificationToken.Token,
             emailVerificationToken.ExpiresAt

@@ -1,9 +1,10 @@
+using Hangfire;
 using Microsoft.Extensions.Options;
 using Support.Auth.Id.Commons.Command;
 using Support.Auth.Id.Constans;
 using Support.Auth.Id.Domain.Entity;
 using Support.Auth.Id.Domain.ValueObject;
-using Support.Auth.Id.Features.Helper;
+using Support.Auth.Id.Models;
 using Support.Auth.Id.Models.DTOs;
 using Support.Auth.Id.Repositories.Interfaces;
 using Support.Auth.Id.Services.Interfaces;
@@ -20,11 +21,18 @@ public class ForgotPasswordCommandHandler : ICommandHandler<ForgotPasswordComman
     private readonly ILogger<ForgotPasswordCommandHandler> _logger;
     private readonly IAuthRepositories _authRepo;
     private readonly IAuthEmailServices _emailSender;
-    private readonly ISecureTokenGenerator<PasswordResetToken> _tokenGenerator;
+    private readonly ISecureTokenGenerator<ForgotPasswordToken> _tokenGenerator;
     private readonly IAppHasher _appHasher;
     private readonly FrontendSettings _options;
 
-    public ForgotPasswordCommandHandler(ILogger<ForgotPasswordCommandHandler> logger, IAuthRepositories authRepo, IAuthEmailServices emailSender, IOptions<FrontendSettings> options, ISecureTokenGenerator<PasswordResetToken> tokenGenerator, IAppHasher appHasher)
+    public ForgotPasswordCommandHandler(
+        ILogger<ForgotPasswordCommandHandler> logger,
+        IAuthRepositories authRepo,
+        IAuthEmailServices emailSender,
+        IOptions<FrontendSettings> options,
+        ISecureTokenGenerator<ForgotPasswordToken> tokenGenerator,
+        IAppHasher appHasher
+    )
     {
         _logger = logger;
         _authRepo = authRepo;
@@ -34,7 +42,11 @@ public class ForgotPasswordCommandHandler : ICommandHandler<ForgotPasswordComman
         _appHasher = appHasher;
     }
 
-    public async Task HandleAsync(ForgotPasswordCommand command, CancellationToken cancellationToken = default)
+    public async Task HandleAsync
+    (
+        ForgotPasswordCommand command,
+        CancellationToken cancellationToken = default
+    )
     {
         _logger.LogInformation("--> Hit ForgotPasswordCommandHandler at Support Auth");
 
@@ -55,28 +67,42 @@ public class ForgotPasswordCommandHandler : ICommandHandler<ForgotPasswordComman
             return;
         }
 
-        PasswordResetToken passwordResetToken = _tokenGenerator.Generate();
+        SecureTokenGenerator<ForgotPasswordToken> passwordResetToken = _tokenGenerator.Generate(TimeSpan.FromMinutes(30));
         string tokenHash = _appHasher.Hash(passwordResetToken.Token);
 
-        user.SetPasswordResetToken(tokenHash, passwordResetToken.ExpiresAt);
+        AuthSendEmail authSendEmail = new();
 
-        await _authRepo.SaveChangesAsync(cancellationToken);
+        await using var transaction = await _authRepo.BeginTransactionAsync(cancellationToken);
+        try
+        {
+            user.SetPasswordResetToken(tokenHash, passwordResetToken.ExpiresAt);
 
-        string forgotPassTemplate = TemplateObject.ForgotPassword;
-        string verificationUrl =
-            $"{_options.BaseUrl.TrimEnd('/')}/forgot-password?token={Uri.EscapeDataString(passwordResetToken.Token)}";
-        string htmlBody = HtmlTemplateEngine.Render(
-            forgotPassTemplate,
-            new() { { TemplateKeys.FullName, user.FullName }, { TemplateKeys.URL, verificationUrl } }
-        );
+            await _authRepo.SaveChangesAsync(cancellationToken);
 
-        // dont backward, email just sending if save data to db success
-        await _emailSender.SendForgotPasswordAsync
-        (
-            user.Email, 
-            user.FullName, 
-            htmlBody, 
-            passwordResetToken.Token
-        );
+            string forgotPassTemplate = Template.Objects.ForgotPassword;
+            string verificationUrl =
+                $"{_options.BaseUrl.TrimEnd('/')}/forgot-password?token={Uri.EscapeDataString(passwordResetToken.Token)}";
+
+            BackgroundJob.Enqueue<IEmailBackgroundServices>(
+                service => service.SendBackgroundEmailAsycn(
+                    user.Email,
+                    user.FullName,
+                    "Forgot Password",
+                    forgotPassTemplate,
+                    verificationUrl,
+                    tokenHash,
+                    cancellationToken
+                )
+            );
+
+            await _authRepo.CommitTransactionAsync(cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            await _authRepo.RollbackTransactionAsync(cancellationToken);
+            _logger.LogError(ex, "Failed to queue password reset for {Email}", user.Email);
+
+            throw;
+        }
     }
 }
