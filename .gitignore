@@ -53,6 +53,7 @@ Thumbs.db
 # IDE
 # =====================
 .vscode/
+.opencode/
 .idea/
 *.iml
 *.swp

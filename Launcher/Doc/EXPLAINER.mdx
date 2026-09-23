@@ -457,6 +457,9 @@ Perhatikan juga
 
 =>  Level trycatch untuk buang throw exception baiknya diatur pada midleware serta di inject di root(program)
 
+=>  Proses menangkap exception (catch) di dalam .NET itu "mahal" secara komputasi. 
+    Menggunakan try-catch yang terlalu agresif untuk alur logika biasa 
+    (bukan error sistem) akan menurunkan performa CPU server Anda.
 
 Try-Catch layak digunakan ketika:
 
