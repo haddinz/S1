@@ -13,7 +13,7 @@ public class EmailTokenGenerator<T> : ISecureTokenGenerator<T> where T : class
         Span<byte> bytes = stackalloc byte[32];
         System.Security.Cryptography.RandomNumberGenerator.Fill(bytes);
         
-        string tokenValue = Convert.ToHexString(bytes);
+        string tokenValue = Convert.ToHexString(bytes).ToLowerInvariant();
         DateTime expiryTime = DateTime.UtcNow.Add(expiryDuration);
 
         return new SecureTokenGenerator<T>(tokenValue, expiryTime);

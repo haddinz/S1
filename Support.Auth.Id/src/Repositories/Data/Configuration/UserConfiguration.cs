@@ -25,6 +25,7 @@ public sealed class UserConfiguration : IEntityTypeConfiguration<User>
 
         // using OwnsOne to tell Efcore that not can be relation
         // because its value object
+        // value object email verification
         builder.OwnsOne(
             x => x.EmailVerification,
             email =>
@@ -38,6 +39,7 @@ public sealed class UserConfiguration : IEntityTypeConfiguration<User>
             }
         );
 
+        // value object password reset
         builder.OwnsOne(
             x => x.PasswordReset,
             passwordReset =>
@@ -52,8 +54,10 @@ public sealed class UserConfiguration : IEntityTypeConfiguration<User>
         );
 
         // relation many to many just one side is enought. User and Role
+        // relation with role
         builder.HasMany(x => x.Roles).WithMany(x => x.Users);
 
+        // relation with refresh token
         builder
             .HasMany(x => x.RefreshTokens)
             .WithOne(x => x.User)

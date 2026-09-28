@@ -23,6 +23,7 @@ public class ResendVerifyEmailCommandHandler : ICommandHandler<ResendVerifyEmail
     private readonly IAuthEmailServices _emailServices;
     private readonly ISecureTokenGenerator<EmailVerificationToken> _emailTokenGenerator;
     private readonly FrontendSettings _frontendSettings;
+    private readonly IAppHasher _appHasher;
 
     public ResendVerifyEmailCommandHandler(
         ILogger<ResendVerifyEmailCommandHandler> logger,
@@ -30,13 +31,15 @@ public class ResendVerifyEmailCommandHandler : ICommandHandler<ResendVerifyEmail
         IAuthEmailServices emailServices,
         ISecureTokenGenerator<EmailVerificationToken> emailTokenGenerator,
         IOptions<FrontendSettings> frontendSettings
-    )
+,
+        IAppHasher appHasher)
     {
         _logger = logger;
         _authRepo = authRepo;
         _emailServices = emailServices;
         _emailTokenGenerator = emailTokenGenerator;
         _frontendSettings = frontendSettings.Value;
+        _appHasher = appHasher;
     }
 
     public async Task HandleAsync(
@@ -53,10 +56,9 @@ public class ResendVerifyEmailCommandHandler : ICommandHandler<ResendVerifyEmail
             throw new ConflictException("User with this email already verified.");
 
         SecureTokenGenerator<EmailVerificationToken> emailVerificationToken = _emailTokenGenerator.Generate(TimeSpan.FromMinutes(30));
-        user.SetEmailVerificationToken(
-            emailVerificationToken.Token,
-            emailVerificationToken.ExpiresAt
-        );
+        string tokenHash = _appHasher.HashToken(emailVerificationToken.Token);
+
+        user.SetEmailVerificationToken(tokenHash, emailVerificationToken.ExpiresAt);
 
         await _authRepo.SaveChangesAsync(cancellationToken);
 

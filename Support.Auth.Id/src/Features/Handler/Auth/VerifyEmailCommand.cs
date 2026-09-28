@@ -28,7 +28,7 @@ public class VerifyEmailCommandHandler : ICommandHandler<VerifyEmailCommand>
     {
         _logger.LogInformation("--> Hit VerifyEmailCommandHandler");
 
-        string tokenHash = _appHasher.Hash(command.Token);
+        string tokenHash = _appHasher.HashToken(command.Token);
         User? user = await _authRepo.GetUserByEmailVerificationTokenAsync(tokenHash) 
             ?? throw new NotFoundException("Verification token is invalid.");
 

@@ -64,42 +64,54 @@ public class RegisterCommandHandler : ICommandHandler<RegisterCommand>
         if (await _authRepo.IsUsernameExists(command.UserName, cancellationToken))
             throw new ConflictException("Username already use");
 
-        // stop first for testing app register
-        // _validator.Validate(command.Password);
-        string passwordHash = _appHasher.Hash(command.Password);
+        await using var transaction = await _authRepo.BeginTransactionAsync(cancellationToken);
+        try
+        {
+            // stop first for testing app register
+            // _validator.Validate(command.Password);
+            string passwordHash = _appHasher.Hash(command.Password);
+            User user = User.Register(command.Email, command.FullName, command.UserName, passwordHash);
 
-        User user = User.Register(command.Email, command.FullName, command.UserName, passwordHash);
+            Role? roleUser =
+                await _authRepo.GetUserByRoleAsync(RoleEnum.User.ToString(), cancellationToken)
+                ?? throw new NotFoundException("Default role not found.");
+            user.AssignRole(roleUser);
 
-        Role? roleUser =
-            await _authRepo.GetUserByRoleAsync(RoleEnum.User.ToString(), cancellationToken)
-            ?? throw new NotFoundException("Default role not found.");
-        user.AssignRole(roleUser);
+            SecureTokenGenerator<EmailVerificationToken> emailVerivicationToken = _emailTokenGenerator.Generate(TimeSpan.FromMinutes(30));
+            string tokenHash = _appHasher.HashToken(emailVerivicationToken.Token);
 
-        SecureTokenGenerator<EmailVerificationToken> emailVerivicationToken = _emailTokenGenerator.Generate(TimeSpan.FromMinutes(30));
-        string tokenHash = _appHasher.Hash(emailVerivicationToken.Token);
+            user.SetEmailVerificationToken(tokenHash, emailVerivicationToken.ExpiresAt);
 
-        user.SetEmailVerificationToken(tokenHash, emailVerivicationToken.ExpiresAt);
+            await _authRepo.AddAsync(user, cancellationToken);
+            await _authRepo.SaveChangesAsync(cancellationToken);
 
-        await _authRepo.AddAsync(user, cancellationToken);
-        await _authRepo.SaveChangesAsync(cancellationToken);
+            _logger.LogInformation("--> Verivication base url at {BaseUrl}", _options.BaseUrl);
+            string verificationUrl =
+                $"{_options.BaseUrl.TrimEnd('/')}/verify-email?token={Uri.EscapeDataString(emailVerivicationToken.Token)}";
 
-        _logger.LogInformation("--> Verivication base url at {BaseUrl}", _options.BaseUrl);
-        string verificationUrl =
-            $"{_options.BaseUrl.TrimEnd('/')}/verify-email?token={Uri.EscapeDataString(emailVerivicationToken.Token)}";
+            // string verifyTemplate = $"{TemplateEnum.VerifyEmail}.html";
+            string verifyTemplate = Template.Objects.VerifyEmail;
+            string htmlBody = HtmlTemplateEngine.Render(
+                verifyTemplate,
+                new() { { "FULL_NAME", user.FullName }, { "VERIFICATION_URL", verificationUrl } }
+            );
 
-        // string verifyTemplate = $"{TemplateEnum.VerifyEmail}.html";
-        string verifyTemplate = Template.Objects.VerifyEmail;
-        string htmlBody = HtmlTemplateEngine.Render(
-            verifyTemplate,
-            new() { { "FULL_NAME", user.FullName }, { "VERIFICATION_URL", verificationUrl } }
-        );
+            // dont backward, email just sending if save data to db success
+            await _emailSender.SendEmailVerificationAsync(
+                user.Email,
+                user.FullName,
+                htmlBody,
+                emailVerivicationToken.Token
+            );   
 
-        // dont backward, email just sending if save data to db success
-        await _emailSender.SendEmailVerificationAsync(
-            user.Email,
-            user.FullName,
-            htmlBody,
-            emailVerivicationToken.Token
-        );
+            await _authRepo.CommitTransactionAsync(cancellationToken);
+        }
+        catch(Exception ex)
+        {
+            await _authRepo.RollbackTransactionAsync(cancellationToken);
+            _logger.LogError(ex, "Failed to register user and sending email");
+
+            throw;
+        }
     }
 }

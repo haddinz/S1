@@ -4,6 +4,7 @@ using Support.Auth.Id.Commons.Command;
 using Support.Auth.Id.Constans;
 using Support.Auth.Id.Domain.Entity;
 using Support.Auth.Id.Domain.ValueObject;
+using Support.Auth.Id.Exceptions;
 using Support.Auth.Id.Models;
 using Support.Auth.Id.Models.DTOs;
 using Support.Auth.Id.Repositories.Interfaces;
@@ -67,21 +68,19 @@ public class ForgotPasswordCommandHandler : ICommandHandler<ForgotPasswordComman
             return;
         }
 
-        SecureTokenGenerator<ForgotPasswordToken> passwordResetToken = _tokenGenerator.Generate(TimeSpan.FromMinutes(30));
-        string tokenHash = _appHasher.Hash(passwordResetToken.Token);
-
-        AuthSendEmail authSendEmail = new();
-
         await using var transaction = await _authRepo.BeginTransactionAsync(cancellationToken);
         try
         {
-            user.SetPasswordResetToken(tokenHash, passwordResetToken.ExpiresAt);
+            SecureTokenGenerator<ForgotPasswordToken> passwordResetToken = _tokenGenerator.Generate(TimeSpan.FromMinutes(30));
+            string forgotPassTemplate = Template.Objects.ForgotPassword ??
+                throw new NotFoundException("Template email is not found");
 
-            await _authRepo.SaveChangesAsync(cancellationToken);
-
-            string forgotPassTemplate = Template.Objects.ForgotPassword;
             string verificationUrl =
                 $"{_options.BaseUrl.TrimEnd('/')}/forgot-password?token={Uri.EscapeDataString(passwordResetToken.Token)}";
+            string tokenHash = _appHasher.HashToken(passwordResetToken.Token);
+
+            user.SetPasswordResetToken(tokenHash, passwordResetToken.ExpiresAt);
+            await _authRepo.SaveChangesAsync(cancellationToken);
 
             BackgroundJob.Enqueue<IEmailBackgroundServices>(
                 service => service.SendBackgroundEmailAsycn(
@@ -90,7 +89,7 @@ public class ForgotPasswordCommandHandler : ICommandHandler<ForgotPasswordComman
                     "Forgot Password",
                     forgotPassTemplate,
                     verificationUrl,
-                    tokenHash,
+                    passwordResetToken.Token,
                     cancellationToken
                 )
             );
