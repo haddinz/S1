@@ -1,9 +1,7 @@
 
 # S1 — .NET Microservices & Distributed Systems
 
-Repository for learning and experimenting with **.NET backend development, microservices, inter-service communication, messaging, databases, containerization, and Kubernetes**.
-
-The project focuses on understanding how backend services communicate and operate in a distributed environment rather than only building a traditional CRUD application.
+Support Pro-Document is a microservices-driven platform designed to streamline secure academic grading and professional documentation management. While the final business goal is to enable educators and administrators to seamlessly input, track, and process grade documents, current development focuses on the core infrastructure. The repository is presently establishing the foundational Authentication and Notification subsystems using an event-driven .NET architecture. Once this secure distributed communication fabric is complete, the core Support Pro-Document business features will be plugged directly into the system.
 
 ## 🎯 Purpose
 
