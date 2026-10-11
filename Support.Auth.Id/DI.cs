@@ -25,6 +25,7 @@ public static class DependencyInjection
     {
         // Add Hangfire Background Services
         services.AddScoped<IEmailBackgroundServices, EmailBackgroundServices>();
+        services.AddScoped<IEmailQueueService, EmailQueueService>();
 
         // Add Authentication and Authorization User and Password (costum)
         services.AddScoped<IAppHasher, AppHasher>();

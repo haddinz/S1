@@ -4,8 +4,15 @@ namespace Support.Auth.Id.Repositories;
 
 public interface IBaseRepositories
 {
-    Task<IDbContextTransaction> BeginTransactionAsync(    CancellationToken cancellationToken = default);
-    Task CommitTransactionAsync(CancellationToken cancellationToken = default);
-    Task RollbackTransactionAsync(CancellationToken cancellationToken = default);
     Task SaveChangesAsync(CancellationToken cancellationToken = default);
+
+    Task<T> ExecuteInTransactionAsync<T>
+    (
+        Func<CancellationToken, Task<T>> work, CancellationToken cancellationToken = default
+    );
+
+    Task ExecuteInTransactionAsync
+    (
+        Func<CancellationToken, Task> work, CancellationToken cancellationToken = default
+    );
 }

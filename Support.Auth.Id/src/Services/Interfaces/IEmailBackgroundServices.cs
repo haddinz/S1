@@ -2,12 +2,10 @@ namespace Support.Auth.Id.Services.Interfaces;
 
 public interface IEmailBackgroundServices
 {
-    Task SendBackgroundEmailAsycn(
-        string email, 
-        string fullName, 
+    Task SendBackgroundEmailAsync(
+        string email,
         string subject,
-        string templateSubject,
-        string urlLink, 
-        string plainToken,
-        CancellationToken cancellationToken = default);
+        string htmlBody,
+        CancellationToken cancellationToken = default
+    );
 }
