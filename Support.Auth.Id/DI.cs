@@ -23,10 +23,6 @@ public static class DependencyInjection
         IConfiguration configuration
     )
     {
-        // Add Hangfire Background Services
-        services.AddScoped<IEmailBackgroundServices, EmailBackgroundServices>();
-        services.AddScoped<IEmailQueueService, EmailQueueService>();
-
         // Add Authentication and Authorization User and Password (costum)
         services.AddScoped<IAppHasher, AppHasher>();
         services.AddScoped<ITokenGenerator, TokenGenerator>();
@@ -37,7 +33,6 @@ public static class DependencyInjection
         // Add Security Services
         services.AddScoped<IPasswordPolicyValidator, PasswordPolicyValidator>();
         services.AddScoped(typeof(ISecureTokenGenerator<>), typeof(EmailTokenGenerator<>));
-        services.AddScoped<IAuthEmailServices, AuthEmailServices>();
 
         // Add Handler User
         services.AddScoped<ICommandQueryHandler<GetActiveUserQuery, UserProfileResponse>,GetActiveUserQueryHandler>();
@@ -53,9 +48,6 @@ public static class DependencyInjection
         services.AddScoped<ICommandHandler<VerifyEmailCommand>,VerifyEmailCommandHandler>();
         services.AddScoped<ICommandHandler<ResendVerifyEmailCommand>, ResendVerifyEmailCommandHandler>();
         services.AddScoped<ICommandHandler<ForgotPasswordCommand>, ForgotPasswordCommandHandler>();
-
-        // Add Client Services
-        services.AddScoped<INotificationClient, EmailSenderServices>();
 
         return services;
     }

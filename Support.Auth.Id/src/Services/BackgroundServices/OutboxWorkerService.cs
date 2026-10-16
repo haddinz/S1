@@ -1,9 +1,9 @@
 using Support.Auth.Id.Domain.Entity;
-using Support.Auth.Id.Services.Interfaces;
 using Support.Auth.Id.Constans;
 using System.Text.Json;
-using Support.Auth.Id.Models;
 using Support.Auth.Id.Repositories;
+using Support.Notification.Client.Contract;
+using Support.Notification.Client.DTOs.Request;
 
 namespace Support.Auth.Id.Services.BackgroundServices;
 
@@ -11,16 +11,16 @@ public class OutboxWorkerService : BackgroundService
 {
     private readonly ILogger<OutboxWorkerService> _logger;
     private readonly IServiceScopeFactory _scoprFactory;
-    private readonly IAuthEmailServices _emailServices;
+    private readonly INotificationClient _emailSender;
     private readonly TimeSpan _interval = TimeSpan.FromSeconds(10);
     private readonly int _batchSize = 10;
     private readonly int _maxRetryCount = 5;
 
-    public OutboxWorkerService(ILogger<OutboxWorkerService> logger, IServiceScopeFactory scoprFactory, IAuthEmailServices emailServices)
+    public OutboxWorkerService(ILogger<OutboxWorkerService> logger, IServiceScopeFactory scoprFactory, INotificationClient emailSender)
     {
         _logger = logger;
         _scoprFactory = scoprFactory;
-        _emailServices = emailServices;
+        _emailSender = emailSender;
     }
 
     protected override async Task ExecuteAsync(CancellationToken cancellationToken)
@@ -61,10 +61,10 @@ public class OutboxWorkerService : BackgroundService
         {
             try
             {
-                AuthSendEmail payload = JsonSerializer.Deserialize<AuthSendEmail>(message.Payload)
+                SendEmailRequest payload = JsonSerializer.Deserialize<SendEmailRequest>(message.Payload)
                     ?? throw new InvalidOperationException("Invalid payload format");
 
-                await _emailServices.SendEmailAsync(payload, cancellationToken);
+                await _emailSender.SendEmailAsync(payload, cancellationToken);
 
                 message.MarkAsProcessed();
             }

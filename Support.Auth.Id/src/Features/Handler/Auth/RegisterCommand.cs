@@ -10,6 +10,8 @@ using Support.Auth.Id.Models.Entity;
 using Support.Auth.Id.Models.Enum;
 using Support.Auth.Id.Repositories.Interfaces;
 using Support.Auth.Id.Services.Interfaces;
+using Support.Notification.Client.Contract;
+using Support.Notification.Client.DTOs.Request;
 
 namespace Support.Auth.Id.Features.Handler.Auth;
 
@@ -28,30 +30,32 @@ public class RegisterCommandHandler : ICommandHandler<RegisterCommand>
     private readonly IAuthRepositories _authRepo;
     private readonly IAppHasher _appHasher;
     private readonly IPasswordPolicyValidator _validator;
-    private readonly IAuthEmailServices _emailSender;
+    private readonly IEmailQueueServiceClient _emailQueue;
     private readonly ISecureTokenGenerator<EmailVerificationToken> _emailTokenGenerator;
     private readonly FrontendSettings _options;
 
-    public RegisterCommandHandler(
+    public RegisterCommandHandler
+    (
         ILogger<RegisterCommandHandler> logger,
         IAuthRepositories authRepo,
         IAppHasher appHasher,
         IPasswordPolicyValidator validator,
-        IAuthEmailServices emailSender,
         ISecureTokenGenerator<EmailVerificationToken> emailTokenGenerator,
-        IOptions<FrontendSettings> options
+        IOptions<FrontendSettings> options,
+        IEmailQueueServiceClient emailQueue
     )
     {
         _logger = logger;
         _authRepo = authRepo;
         _appHasher = appHasher;
         _validator = validator;
-        _emailSender = emailSender;
         _emailTokenGenerator = emailTokenGenerator;
         _options = options.Value;
+        _emailQueue = emailQueue;
     }
 
-    public async Task HandleAsync(
+    public async Task HandleAsync
+    (
         RegisterCommand command,
         CancellationToken cancellationToken = default
     )
@@ -64,17 +68,16 @@ public class RegisterCommandHandler : ICommandHandler<RegisterCommand>
         if (await _authRepo.IsUsernameExists(command.UserName, cancellationToken))
             throw new ConflictException("Username already use");
 
-        await using var transaction = await _authRepo.BeginTransactionAsync(cancellationToken);
-        try
+        string htmlBody = await _authRepo.ExecuteInTransactionAsync(async ct =>
         {
-            // stop first for testing app register
+            // stop first for testing while register
             // _validator.Validate(command.Password);
             string passwordHash = _appHasher.Hash(command.Password);
             User user = User.Register(command.Email, command.FullName, command.UserName, passwordHash);
 
-            Role? roleUser =
-                await _authRepo.GetUserByRoleAsync(RoleEnum.User.ToString(), cancellationToken)
-                ?? throw new NotFoundException("Default role not found.");
+            Role? roleUser = await _authRepo
+                .GetUserByRoleAsync(RoleEnum.User.ToString(), cancellationToken) 
+                ?? throw new NotFoundException("Default role not found");
             user.AssignRole(roleUser);
 
             SecureTokenGenerator<EmailVerificationToken> emailVerivicationToken = _emailTokenGenerator.Generate(TimeSpan.FromMinutes(30));
@@ -82,36 +85,25 @@ public class RegisterCommandHandler : ICommandHandler<RegisterCommand>
 
             user.SetEmailVerificationToken(tokenHash, emailVerivicationToken.ExpiresAt);
 
-            await _authRepo.AddAsync(user, cancellationToken);
-            await _authRepo.SaveChangesAsync(cancellationToken);
-
-            _logger.LogInformation("--> Verivication base url at {BaseUrl}", _options.BaseUrl);
             string verificationUrl =
                 $"{_options.BaseUrl.TrimEnd('/')}/verify-email?token={Uri.EscapeDataString(emailVerivicationToken.Token)}";
 
-            // string verifyTemplate = $"{TemplateEnum.VerifyEmail}.html";
-            string verifyTemplate = Template.Objects.VerifyEmail;
-            string htmlBody = HtmlTemplateEngine.Render(
-                verifyTemplate,
+            await _authRepo.AddAsync(user, cancellationToken);
+
+            return HtmlTemplateEngine.Render(
+                Template.Name.VerifyEmail,
                 new() { { "FULL_NAME", user.FullName }, { "VERIFICATION_URL", verificationUrl } }
             );
 
-            // dont backward, email just sending if save data to db success
-            await _emailSender.SendEmailVerificationAsync(
-                user.Email,
-                user.FullName,
-                htmlBody,
-                emailVerivicationToken.Token
-            );   
+        }, cancellationToken);
 
-            await _authRepo.CommitTransactionAsync(cancellationToken);
-        }
-        catch(Exception ex)
+        SendEmailRequest sendEmailRequest = new()
         {
-            await _authRepo.RollbackTransactionAsync(cancellationToken);
-            _logger.LogError(ex, "Failed to register user and sending email");
+            To = command.Email,
+            Subject = "Register",
+            HTMLBody = htmlBody,
+        };
 
-            throw;
-        }
+        await _emailQueue.EnqueueEmailAsync(sendEmailRequest, cancellationToken);
     }
 }

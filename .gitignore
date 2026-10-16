@@ -71,3 +71,12 @@ yarn-error.log*
 # =====================
 TestResults/
 coverage/
+
+# Local Agent Rules
+AGENTS.md
+
+# .NET Local Tools
+dotnet-tools.json
+
+# Local Mail Server Executable
+mailpit.exe

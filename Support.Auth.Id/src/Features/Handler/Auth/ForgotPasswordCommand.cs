@@ -2,11 +2,13 @@ using Microsoft.Extensions.Options;
 using Support.Auth.Id.Commons.Command;
 using Support.Auth.Id.Constans;
 using Support.Auth.Id.Domain.Entity;
-using Support.Auth.Id.Features.Helper;
 using Support.Auth.Id.Domain.ValueObject;
+using Support.Auth.Id.Features.Helper;
 using Support.Auth.Id.Models.DTOs;
 using Support.Auth.Id.Repositories.Interfaces;
 using Support.Auth.Id.Services.Interfaces;
+using Support.Notification.Client.Contract;
+using Support.Notification.Client.DTOs.Request;
 
 namespace Support.Auth.Id.Features.Handler.Auth;
 
@@ -19,7 +21,7 @@ public class ForgotPasswordCommandHandler : ICommandHandler<ForgotPasswordComman
 {
     private readonly ILogger<ForgotPasswordCommandHandler> _logger;
     private readonly IAuthRepositories _authRepo;
-    private readonly IEmailQueueService _emailQueue;
+    private readonly IEmailQueueServiceClient _emailQueue;
     private readonly ISecureTokenGenerator<ForgotPasswordToken> _tokenGenerator;
     private readonly IAppHasher _appHasher;
     private readonly FrontendSettings _options;
@@ -27,7 +29,7 @@ public class ForgotPasswordCommandHandler : ICommandHandler<ForgotPasswordComman
     public ForgotPasswordCommandHandler(
         ILogger<ForgotPasswordCommandHandler> logger,
         IAuthRepositories authRepo,
-        IEmailQueueService emailQueue,
+        IEmailQueueServiceClient emailQueue,
         IOptions<FrontendSettings> options,
         ISecureTokenGenerator<ForgotPasswordToken> tokenGenerator,
         IAppHasher appHasher
@@ -60,28 +62,43 @@ public class ForgotPasswordCommandHandler : ICommandHandler<ForgotPasswordComman
 
         if (!user.IsActive)
         {
-            _logger.LogInformation("Account not activated yet; no reset email queued");
+            _logger.LogInformation("Account not activated yet no reset email queued");
             return;
         }
 
-        string htmlBody = await _authRepo.ExecuteInTransactionAsync(async ct =>
+        string htmlBody = await _authRepo.ExecuteInTransactionAsync(
+            async cancellationToken =>
+            {
+                SecureTokenGenerator<ForgotPasswordToken> passwordResetToken =
+                    _tokenGenerator.Generate(TimeSpan.FromMinutes(30));
+
+                string ForgotPasswordUrl =
+                    $"{_options.BaseUrl.TrimEnd('/')}/forgot-password?token={Uri.EscapeDataString(passwordResetToken.Token)}";
+
+                user.SetPasswordResetToken(
+                    _appHasher.HashToken(passwordResetToken.Token),
+                    passwordResetToken.ExpiresAt
+                );
+
+                return HtmlTemplateEngine.Render(
+                    Template.Name.ForgotPassword,
+                    new()
+                    {
+                        { Template.Keys.FullName, user.FullName },
+                        { Template.Keys.URL, ForgotPasswordUrl },
+                    }
+                );
+            },
+            cancellationToken
+        );
+
+        SendEmailRequest sendEmailRequest = new()
         {
-            SecureTokenGenerator<ForgotPasswordToken> passwordResetToken = _tokenGenerator.Generate(TimeSpan.FromMinutes(30));
+            To = user.Email,
+            Subject = "Forgot Password",
+            HTMLBody = htmlBody,
+        };
 
-            string verificationUrl =
-                $"{_options.BaseUrl.TrimEnd('/')}/forgot-password?token={Uri.EscapeDataString(passwordResetToken.Token)}";
-
-            user.SetPasswordResetToken(_appHasher.HashToken(passwordResetToken.Token), passwordResetToken.ExpiresAt);
-
-            // Rendered inside the transaction: a missing template throws here → rollback, job never queued.
-            return HtmlTemplateEngine.Render(
-                Template.Name.ForgotPassword,
-                new() { { Template.Keys.FullName, user.FullName }, { Template.Keys.URL, verificationUrl } }
-            );
-
-        }, cancellationToken);
-
-        // Queued only after the token is committed, so an email never references a rolled-back token.
-        await _emailQueue.EnqueueForgotPassword(user.Email, "Forgot Password", htmlBody, cancellationToken);
+        await _emailQueue.EnqueueEmailAsync(sendEmailRequest, cancellationToken);
     }
 }

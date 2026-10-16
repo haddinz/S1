@@ -1123,7 +1123,9 @@ Jalankan perintah berikut di terminal (di root folder project `Support.Auth.Id`)
 # 1. Inisialisasi User Secrets
 dotnet user-secrets init --project Support.Auth.Id
 
-# 2. Set konfigurasi SMTP
+cd Support.Auth.Id
+
+# 1. Set konfigurasi for gmail
 dotnet user-secrets set "Smtp:Host" "smtp.gmail.com"
 dotnet user-secrets set "Smtp:Port" "587"
 dotnet user-secrets set "Smtp:Username" "support@example.com"
@@ -1132,8 +1134,19 @@ dotnet user-secrets set "Smtp:SenderName" "Support"
 dotnet user-secrets set "Smtp:SenderEmail" "no-replaysupport@example.com"
 dotnet user-secrets set "Smtp:EnableSsl" "true"
 
-# 2. Set konfigurasi SMTP for Mailpit testing
-dot3et user-secrets list
+# 1. Set konfigurasi for gmail
+dotnet user-secrets set "Smtp:Host" "localhost"
+dotnet user-secrets set "Smtp:Port" "1025"
+dotnet user-secrets set "Smtp:Username" ""
+dotnet user-secrets set "Smtp:Password" ""
+dotnet user-secrets set "Smtp:SenderName" "Support"
+dotnet user-secrets set "Smtp:SenderEmail" "no-reply@support.local"
+dotnet user-secrets set "Smtp:EnableSsl" "false"
+
+
+# 2. Look at konfigurasi SMTP for Mailpit testing
+dotnet user-secrets list
+
 Smtp:Username = 
 Smtp:SenderName = Support
 Smtp:SenderEmail = no-reply@support.local

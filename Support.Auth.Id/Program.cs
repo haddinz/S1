@@ -6,6 +6,7 @@ using Hangfire.Dashboard.BasicAuthorization;
 using Hangfire.PostgreSql;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Support.Auth.Id;
 using Support.Auth.Id.Domain.ValueObject;
@@ -47,12 +48,19 @@ builder
     .Bind(builder.Configuration.GetSection(FrontendSettings.SectionName))
     .ValidateOnStart();
 
-JwtSettings jwtSettings =
-    builder.Configuration.GetSection(JwtSettings.SectionName).Get<JwtSettings>()
-    ?? throw new InvalidOperationException("JwtSettings configuration missing.");
+builder 
+    .Services.AddOptions<HangfireDashboard>()
+    .Bind(builder.Configuration.GetSection(HangfireDashboard.SectionName))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
 
 // Add disable ModelState Behaviour
 // builder.Services.Configure<ApiBehaviorOptions>(opt => opt.SuppressModelStateInvalidFilter = true);
+
+
+JwtSettings jwtSettings =
+    builder.Configuration.GetSection(JwtSettings.SectionName).Get<JwtSettings>()
+    ?? throw new InvalidOperationException("JwtSettings configuration missing.");
 
 builder
     .Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -91,10 +99,11 @@ builder.Services.AddNotificationModule(builder.Configuration);
 
 // Add Hangfire and Background Worker
 // builder.Services.AddHostedService<OutboxWorkerService>();
+var workerCount = builder.Configuration.GetValue<int?>("Hangfire:WorkerCount") ?? (builder.Environment.IsProduction() ? 5 : 1);
 builder.Services.AddHangfireServer(options =>
 {
-    options.WorkerCount = 1;
-    options.Queues = new[] { "email", "default" };
+    options.WorkerCount = workerCount;
+    options.Queues = new[] { "email", "cleanup", "default" };
 });
 
 // Add Controller
@@ -102,33 +111,7 @@ builder.Services.AddControllers();
 
 var app = builder.Build();
 
-var dashboardUser = builder.Configuration["HangfireDashboard:Login"] ?? "admin";
-var dashboardPass = builder.Configuration["HangfireDashboard:Password"] ?? "default_secure_pass";
-var dashboardSsl = builder.Configuration.GetValue<bool>("HangfireDashboard:Ssl", false);
-
-app.UseHangfireDashboard("/hangfire", new DashboardOptions
-{
-    Authorization = new[]
-    {
-        new BasicAuthAuthorizationFilter(new BasicAuthAuthorizationFilterOptions
-        {
-            RequireSsl = dashboardSsl, // Set 'true' in production for HTTPS
-            LoginCaseSensitive = true,
-            Users = new[]
-            {
-                new BasicAuthAuthorizationUser
-                {
-                    Login = dashboardUser,
-                    PasswordClear = dashboardPass
-                }
-            }
-        })
-    }
-});
-
 app.UseMiddleware<ExceptionMiddleware>();
-
-await SeedData.SeedDatabase(app.Services);
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
@@ -142,6 +125,37 @@ app.UseAuthentication();
 
 app.UseAuthorization();
 
+// var dashboardUser = builder.Configuration["HangfireDashboard:Login"] ?? "admin";
+// var dashboardPass = builder.Configuration["HangfireDashboard:Password"] ?? "password";
+// var dashboardSsl = builder.Configuration.GetValue<bool>("HangfireDashboard:Ssl", false);
+// var dashboardSslRedirect = builder.Configuration.GetValue<bool>("HangfireDashboard:SslRedirect", false);
+
+HangfireDashboard hangfireDashboard = app.Services
+    .GetRequiredService<IOptions<HangfireDashboard>>().Value;
+
+app.UseHangfireDashboard("/auth/hangfire", new DashboardOptions
+{
+    Authorization = new[]
+    {
+        new BasicAuthAuthorizationFilter(new BasicAuthAuthorizationFilterOptions
+        {
+            RequireSsl = hangfireDashboard.Ssl, // Set 'true' in production for HTTPS
+            SslRedirect = hangfireDashboard.SslRedirect, // Prevent https redirect loop on HTTP
+            LoginCaseSensitive = true,
+            Users = new[]
+            {
+                new BasicAuthAuthorizationUser
+                {
+                    Login = hangfireDashboard.Login,
+                    PasswordClear = hangfireDashboard.Password
+                }
+            }
+        })
+    }
+});
+
 app.MapControllers();
+
+await SeedData.SeedDatabase(app.Services);
 
 app.Run();

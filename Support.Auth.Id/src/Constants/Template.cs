@@ -5,7 +5,7 @@ public static class Template
     public static class Name
     {
         public const string VerifyEmail = "VerifyEmail.html";
-        public const string ForgotPassword = "ForgotPasswordcuy.html";
+        public const string ForgotPassword = "ForgotPassword.html";
     }
 
     public static class Keys

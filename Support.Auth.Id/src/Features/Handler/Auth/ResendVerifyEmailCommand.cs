@@ -1,13 +1,15 @@
 using Microsoft.Extensions.Options;
 using Support.Auth.Id.Commons.Command;
+using Support.Auth.Id.Constans;
 using Support.Auth.Id.Domain.Entity;
 using Support.Auth.Id.Domain.ValueObject;
 using Support.Auth.Id.Exceptions;
 using Support.Auth.Id.Features.Helper;
 using Support.Auth.Id.Models.DTOs;
-using Support.Auth.Id.Models.Enum;
 using Support.Auth.Id.Repositories.Interfaces;
 using Support.Auth.Id.Services.Interfaces;
+using Support.Notification.Client.Contract;
+using Support.Notification.Client.DTOs.Request;
 
 namespace Support.Auth.Id.Features.Handler.Auth;
 
@@ -20,29 +22,31 @@ public class ResendVerifyEmailCommandHandler : ICommandHandler<ResendVerifyEmail
 {
     private readonly ILogger<ResendVerifyEmailCommandHandler> _logger;
     private readonly IAuthRepositories _authRepo;
-    private readonly IAuthEmailServices _emailServices;
+    private readonly IEmailQueueServiceClient _emailQueue;
     private readonly ISecureTokenGenerator<EmailVerificationToken> _emailTokenGenerator;
     private readonly FrontendSettings _frontendSettings;
     private readonly IAppHasher _appHasher;
 
-    public ResendVerifyEmailCommandHandler(
+    public ResendVerifyEmailCommandHandler
+    (
         ILogger<ResendVerifyEmailCommandHandler> logger,
         IAuthRepositories authRepo,
-        IAuthEmailServices emailServices,
         ISecureTokenGenerator<EmailVerificationToken> emailTokenGenerator,
-        IOptions<FrontendSettings> frontendSettings
-,
-        IAppHasher appHasher)
+        IOptions<FrontendSettings> frontendSettings,
+        IAppHasher appHasher,
+        IEmailQueueServiceClient emailQueue
+    )
     {
         _logger = logger;
         _authRepo = authRepo;
-        _emailServices = emailServices;
         _emailTokenGenerator = emailTokenGenerator;
         _frontendSettings = frontendSettings.Value;
         _appHasher = appHasher;
+        _emailQueue = emailQueue;
     }
 
-    public async Task HandleAsync(
+    public async Task HandleAsync
+    (
         ResendVerifyEmailCommand command,
         CancellationToken cancellationToken = default
     )
@@ -55,30 +59,31 @@ public class ResendVerifyEmailCommandHandler : ICommandHandler<ResendVerifyEmail
         if (user.IsEmailVerified)
             throw new ConflictException("User with this email already verified.");
 
-        SecureTokenGenerator<EmailVerificationToken> emailVerificationToken = _emailTokenGenerator.Generate(TimeSpan.FromMinutes(30));
-        string tokenHash = _appHasher.HashToken(emailVerificationToken.Token);
-
-        user.SetEmailVerificationToken(tokenHash, emailVerificationToken.ExpiresAt);
-
-        await _authRepo.SaveChangesAsync(cancellationToken);
-
-        _logger.LogInformation("--> Verivication base url at {BaseUrl}", _frontendSettings.BaseUrl);
-        string verificationUrl =
-            $"{_frontendSettings.BaseUrl.TrimEnd('/')}/verify-email/resend?token={Uri.EscapeDataString(emailVerificationToken.Token)}";
-
-        string verifyTemplate = $"{TemplateEnum.VerifyEmail}.html"; 
-        string htmlBody = HtmlTemplateEngine.Render(verifyTemplate, new()
+        string htmlBody = await _authRepo.ExecuteInTransactionAsync(async cancellationToken =>
         {
-            { "FULL_NAME", user.FullName },
-            { "VERIFICATION_URL", verificationUrl }
-        });
+            SecureTokenGenerator<EmailVerificationToken> emailVerificationToken = _emailTokenGenerator.Generate(TimeSpan.FromMinutes(30));
+            string tokenHash = _appHasher.HashToken(emailVerificationToken.Token);
 
-        // dont backward, email just sending if save data to db success
-        await _emailServices.SendEmailVerificationAsync(
-            user.Email,
-            user.FullName,
-            htmlBody,
-            emailVerificationToken.Token
-        );
+            user.SetEmailVerificationToken(tokenHash, emailVerificationToken.ExpiresAt);
+
+            string verificationUrl =
+                $"{_frontendSettings.BaseUrl.TrimEnd('/')}/verify-email/resend?token={Uri.EscapeDataString(emailVerificationToken.Token)}";
+
+            return HtmlTemplateEngine.Render(Template.Name.VerifyEmail, new()
+            {
+                { "FULL_NAME", user.FullName },
+                { "VERIFICATION_URL", verificationUrl }
+            });
+        }, cancellationToken);
+
+        
+        SendEmailRequest sendEmailRequest = new()
+        {
+            To = user.Email,
+            Subject = "Verify Email",
+            HTMLBody = htmlBody,
+        };
+
+        await _emailQueue.EnqueueEmailAsync(sendEmailRequest, cancellationToken);
     }
 }

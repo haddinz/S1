@@ -3,6 +3,7 @@ using MailKit.Security;
 using Microsoft.Extensions.Options;
 using MimeKit;
 using Support.Notification.Client.Contract;
+using Support.Notification.Client.DTOs;
 using Support.Notification.Client.DTOs.Request;
 using Support.Notification.Id.Domain.ValueObject;
 
@@ -17,35 +18,6 @@ public class EmailSenderServices : INotificationClient
     {
         _logger = logger;
         _options = options.Value;
-    }
-
-    public async Task SendAsync(
-        SendEmailRequest message,
-        CancellationToken cancellationToken = default
-    )
-    {
-        _logger.LogInformation("--> Hit SendAsync at EmailSenderServices");
-
-        MimeMessage email = new();
-
-        email.From.Add(new MailboxAddress(_options.SenderName, _options.SenderEmail));
-        email.To.Add(MailboxAddress.Parse(message.To));
-
-        email.Subject = message.Subject;
-        email.Body = new TextPart("html") { Text = message.HTMLBody };
-
-        using SmtpClient smtp = new();
-        await smtp.ConnectAsync(
-            _options.Host,
-            _options.Port,
-            _options.EnableSsl,
-            cancellationToken
-        );
-
-        await smtp.AuthenticateAsync(_options.Username, _options.Password, cancellationToken);
-        await smtp.SendAsync(email, cancellationToken);
-
-        await smtp.DisconnectAsync(true, cancellationToken);
     }
 
     public async Task SendEmailAsync(SendEmailRequest request, CancellationToken cancellationToken = default)
@@ -63,6 +35,16 @@ public class EmailSenderServices : INotificationClient
         {
             HtmlBody = request.HTMLBody
         };
+
+        foreach (EmailAttachment attachment in request.Attachments)
+        {
+            bodyBuilder.Attachments.Add
+            (
+                attachment.FileName,
+                attachment.Content,
+                ContentType.Parse(attachment.ContentType)
+            );
+        }
 
         email.Body = bodyBuilder.ToMessageBody();
 
