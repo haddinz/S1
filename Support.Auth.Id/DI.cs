@@ -48,6 +48,7 @@ public static class DependencyInjection
         services.AddScoped<ICommandHandler<VerifyEmailCommand>,VerifyEmailCommandHandler>();
         services.AddScoped<ICommandHandler<ResendVerifyEmailCommand>, ResendVerifyEmailCommandHandler>();
         services.AddScoped<ICommandHandler<ForgotPasswordCommand>, ForgotPasswordCommandHandler>();
+        services.AddScoped<ICommandHandler<ResetPasswordCommand>, ResetPasswordCommandHandler>();
 
         return services;
     }

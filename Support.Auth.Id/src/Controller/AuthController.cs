@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Support.Auth.Client.DTOs.Request;
 using Support.Auth.Id.Commons.Command;
 using Support.Auth.Id.Exceptions;
@@ -25,6 +26,7 @@ public sealed class AuthController : ControllerBase
     private readonly ICommandHandler<VerifyEmailCommand> _verifyEmailHandler;
     private readonly ICommandHandler<ResendVerifyEmailCommand> _resendVerification;
     private readonly ICommandHandler<ForgotPasswordCommand> _forgotPasswordHandler;
+    private readonly ICommandHandler<ResetPasswordCommand> _resetPasswordHandler;
 
     public AuthController(
         ICommandHandler<LoginCommand, AuthResponse> loginHandler,
@@ -32,10 +34,10 @@ public sealed class AuthController : ControllerBase
         ICommandHandler<RegisterCommand> registerHandler,
         ICommandHandler<RefreshTokenCommand, AuthResponse> refreshTokenHandler,
         ICommandHandler<ChangesPasswordCommand> changesPassword,
-        ICommandHandler<VerifyEmailCommand> verifyEmailHandler
-,
+        ICommandHandler<VerifyEmailCommand> verifyEmailHandler,
         ICommandHandler<ResendVerifyEmailCommand> resendVerification,
-        ICommandHandler<ForgotPasswordCommand> forgotPasswordHandler)
+        ICommandHandler<ForgotPasswordCommand> forgotPasswordHandler,
+        ICommandHandler<ResetPasswordCommand> resetPasswordHandler)
     {
         _loginHandler = loginHandler;
         _logoutHandler = logoutHandler;
@@ -45,6 +47,7 @@ public sealed class AuthController : ControllerBase
         _verifyEmailHandler = verifyEmailHandler;
         _resendVerification = resendVerification;
         _forgotPasswordHandler = forgotPasswordHandler;
+        _resetPasswordHandler = resetPasswordHandler;
     }
 
     [HttpPost("register")]
@@ -98,8 +101,8 @@ public sealed class AuthController : ControllerBase
         return Ok(ApiResponse.Success<AuthResponse>(response, "Successfully Login"));
     }
 
-    [HttpPost("refresh-token")]
     [AllowAnonymous]
+    [HttpPost("refresh-token")]
     public async Task<ActionResult<AuthResponse>> RefreshToken(
         [FromBody] RefreshTokenRequest request,
         CancellationToken cancellationToken
@@ -121,8 +124,8 @@ public sealed class AuthController : ControllerBase
         return Ok(ApiResponse.Success<AuthResponse>(response, "Successfully Refresh Token"));
     }
 
-    [HttpPost("change-password")]
     [Authorize]
+    [HttpPost("change-password")]
     public async Task<ActionResult> ChangePassword(
         ChangePasswordRequest request,
         CancellationToken cancellationToken
@@ -137,8 +140,8 @@ public sealed class AuthController : ControllerBase
         {
             UserId = GetCurrentUserId(),
             IpAddress = GetIpAddress(),
-            Password = request.Password,
-            NewPassword = request.NewPassword,
+            CurrentPassword = request.CurrentPassword,
+            NewPassword = request.NewPassword
         };
 
         await _changesPasswordHandler.HandleAsync(command, cancellationToken);
@@ -162,6 +165,30 @@ public sealed class AuthController : ControllerBase
 
         await _forgotPasswordHandler.HandleAsync(command, cancellationToken);
         return Ok(ApiResponse.Success("Forgot Password Successfully Send To Email")); 
+    }
+
+    [AllowAnonymous]
+    [HttpPost("reset-password")]
+    public async Task<ActionResult> ResetPassword
+    (
+        ResetPasswordRequest request,
+        CancellationToken cancellationToken
+    )
+    {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ModelStateExtention.ModelStateResponse(ModelState));
+        }
+
+        ResetPasswordCommand commnad = new()
+        {
+            Token = request.Token,
+            NewPassword = request.NewPassword,
+            IpAddress = GetIpAddress()
+        };
+
+        await _resetPasswordHandler.HandleAsync(commnad, cancellationToken);
+        return Ok(ApiResponse.Success("Reset Password Successfully"));
     }
 
     [AllowAnonymous]

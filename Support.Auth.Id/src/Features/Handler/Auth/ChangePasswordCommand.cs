@@ -9,7 +9,7 @@ namespace Support.Auth.Id.Features.Handler.Auth;
 public class ChangesPasswordCommand : ICommand
 {
     public Guid UserId { get; init; }
-    public string Password { get; init; } = string.Empty;
+    public string CurrentPassword { get; init; } = string.Empty;
     public string NewPassword { get; init; } = string.Empty;
     public string IpAddress { get; init; } = string.Empty;
 }
@@ -33,19 +33,22 @@ public class ChangesPasswordCommandHandler : ICommandHandler<ChangesPasswordComm
     {
         _logger.LogInformation("--> Hit ChangesPasswordCommandHandler");
 
+        if (command.CurrentPassword == command.NewPassword) 
+            throw new BusinessValidationException("New password cannot be the same as the current password.");
+
         User? user =
-            await _authRepo.GetUserByIdAsync(command.UserId)
+            await _authRepo.GetUserByIdAsync(command.UserId, cancellationToken)
             ?? throw new NotFoundException("User Not Found");
 
         user.ValidateLogin();
 
-        bool isValidPassword = _appHasher.Verify(command.Password, user.PasswordHash);
+        bool isValidPassword = _appHasher.Verify(command.CurrentPassword, user.PasswordHash);
         if (!isValidPassword)
             throw new UnauthorizedException("Current password Invalid");
 
         _validator.Validate(command.NewPassword);
 
-        string newPasswordHash = _appHasher.Hash(command.Password);
+        string newPasswordHash = _appHasher.Hash(command.NewPassword);
 
         user.ChangePassword(newPasswordHash);
         user.ForceLogoutAllDevices(command.IpAddress);

@@ -136,14 +136,10 @@ public class User : BaseModels
         RefreshToken? refreshToken = RefreshTokens.FirstOrDefault(x => x.Token == token);
 
         if (refreshToken is null)
-        {
             throw new InvalidOperationException("Refresh token not found.");
-        }
 
         if (!refreshToken.IsActive)
-        {
             throw new InvalidOperationException("Refresh token inactive.");
-        }
 
         return refreshToken;
     }
