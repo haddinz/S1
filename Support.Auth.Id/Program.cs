@@ -14,7 +14,6 @@ using Support.Auth.Id.Middleware;
 using Support.Auth.Id.Models.Enum;
 using Support.Auth.Id.Repository;
 using Support.Auth.Id.Repository.Data;
-using Support.Auth.Id.Services.BackgroundServices;
 using Support.Notification.Id;
 
 var builder = WebApplication.CreateBuilder(args);
