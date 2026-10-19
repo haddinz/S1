@@ -38,7 +38,7 @@ The repository contains **two independent subsystems** that must not be conflate
    - `Support.Auth.Client`, `Support.Notification.Client` — shared **contract libraries** (DTOs/interfaces), no executable.
    - Data store: **PostgreSQL** (`supportdb`) shared with Hangfire storage.
 
-2. **Legacy learning microservices (`net9.0`)**
+2. **Legacy microservices (`net9.0`)**
    - `Support.Platform` — platform catalog API, gRPC **server**, RabbitMQ **publisher**, SQL Server/InMemory.
    - `Command` — child "commands" API, RabbitMQ **consumer**, gRPC **client**, InMemory.
    - Communication: **gRPC (sync)** + **RabbitMQ (async, fanout `trigger`)**.
