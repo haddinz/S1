@@ -1,8 +1,8 @@
 # System Architecture Blueprint — Support Platform
 
-> **Version:** 1.0
-> **Status:** Target Architecture (To-Be) with As-Is baseline
-> **Date:** 2026-10-19
+> **Version:** 1.1
+> **Status:** Current state (AS-IS) with a non-tenant TO-BE roadmap
+> **Date:** 2026-10-19 (revised 2026-10-23: multi-tenancy removed, ERD aligned with code)
 > **Scope:** Entire solution in this repository (both subsystems)
 > **Audience:** Engineering, Platform/DevOps, Security, Technical Product
 > **Author:** Enterprise Architecture
@@ -16,15 +16,26 @@ This blueprint distinguishes two states:
 | Marker | Meaning |
 |---|---|
 | **AS-IS** | What exists in the repository today (verified from source). |
-| **TO-BE** | The production-ready target design. New elements required by the chosen decisions (multi-tenancy, fine-grained RBAC) are marked TO-BE. |
+| **TO-BE** | Target design for improvements that are **not yet implemented** (fine-grained RBAC/permissions, token hardening, audit, outbox). None of them change the tenancy model. |
 
 **Confirmed design decisions (from stakeholder):**
 
 1. **Scope:** entire solution (modern `net10.0` subsystem **and** legacy `net9.0` subsystem).
-2. **Multi-tenancy:** Shared database + `TenantId` discriminator (PostgreSQL row-level tenancy).
+2. **Tenancy:** **single-tenant** — one installation, one user population, one `supportdb`. There is no `Tenants` table and no `TenantId` column anywhere in the code (verified).
 3. **Deployment target:** Kubernetes.
-4. **Authorization:** RBAC with fine-grained Permissions (`Permissions` + `RolePermissions`).
+4. **Authorization:** RBAC today (roles via `RoleUser`); fine-grained Permissions (`Permissions` + `RolePermissions`) are a TO-BE improvement.
 5. **This document lives at:** `ARCHITECTURE.md` (repository root).
+
+### Document map
+
+The four sections below are also available as focused documents at the repository root:
+
+| # | Document | Covers |
+|---|---|---|
+| 1 | [`01-DATABASE-MODEL.md`](01-DATABASE-MODEL.md) | Physical database model (ERD): tables, PK/FK, indexes, relationships |
+| 2 | [`02-COMPONENT-ARCHITECTURE.md`](02-COMPONENT-ARCHITECTURE.md) | C4 Level 3 component/block diagram of the .NET modules and services |
+| 3 | [`03-DATA-FLOW-SECURITY.md`](03-DATA-FLOW-SECURITY.md) | Sequence diagrams: login, token handling, authorization, cross-service flow |
+| 4 | [`04-INFRASTRUCTURE-DEPLOYMENT.md`](04-INFRASTRUCTURE-DEPLOYMENT.md) | Kubernetes topology, workloads, routing, delivery, observability, hardening |
 
 ---
 
@@ -43,9 +54,9 @@ The repository contains **two independent subsystems** that must not be conflate
    - `Command` — child "commands" API, RabbitMQ **consumer**, gRPC **client**, InMemory.
    - Communication: **gRPC (sync)** + **RabbitMQ (async, fanout `trigger`)**.
 
-**AS-IS gaps addressed by this blueprint:** no multi-tenancy, roles-only authorization (no permission model), plaintext JWT signing key in `appsettings`, refresh tokens stored in plaintext, missing authorization attributes on some admin endpoints, and the notification module still coupled inside the Auth host.
+**AS-IS gaps addressed by this blueprint:** roles-only authorization (no permission model), plaintext JWT signing key in `appsettings`, refresh tokens stored in plaintext, missing authorization attributes on some admin endpoints, and the notification module still coupled inside the Auth host.
 
-**TO-BE outcome:** a Kubernetes-deployable, multi-tenant identity platform with fine-grained RBAC, hardened token handling, a transactional outbox, and a cleanly separated notification worker.
+**TO-BE outcome:** a Kubernetes-deployable identity platform with fine-grained RBAC, hardened token handling, a transactional outbox, and a cleanly separated notification worker.
 
 ---
 
@@ -107,10 +118,9 @@ The repository contains **two independent subsystems** that must not be conflate
 flowchart LR
   subgraph IAM["Identity & Access context (PostgreSQL: supportdb)"]
     direction TB
-    A1[Tenants, Users, Roles, Permissions]
-    A2[RefreshTokens, UserRoles, RolePermissions]
-    A3[OutboxMessages, AuditLogs]
-    A4[(Hangfire schema)]
+    A1[Users, Roles, RoleUser]
+    A2[RefreshTokens, OutboxMessage]
+    A3[(Hangfire schema)]
   end
   subgraph CAT["Catalog context (legacy)"]
     direction TB
@@ -123,44 +133,22 @@ flowchart LR
 ```
 
 - **AS-IS:** one shared PostgreSQL database `supportdb` for Auth + Hangfire; Platform on SQL Server; Command on InMemory.
-- **TO-BE:** multi-tenant **shared database with `TenantId` discriminator** in the Identity & Access context. Catalog context remains a separate legacy store (recommended: migrate `Command` to a real database per environment).
+- **Tenancy:** **single-tenant**. There is exactly one user population per deployment; the code contains **no** `Tenants` table, `TenantId` column, `ITenantContext`, or tenant query filter. Uniqueness of `Email`, `UserName`, and `RoleName` is **global**. Adding multi-tenancy would be a future product decision, not an existing requirement.
+- Catalog context remains a separate legacy store (recommended: migrate `Command` to a durable database per environment).
 
-## 4.2 TO-BE ERD — Identity & Access (multi-tenant, RBAC + permissions)
+## 4.2 ERD — Identity & Access (AS-IS, verified from code)
 
 ```mermaid
 erDiagram
-    TENANTS ||--o{ USERS : "has members"
-    TENANTS ||--o{ ROLES : "defines (nullable = system role)"
-    TENANTS ||--o{ USER_ROLES : "scopes"
-    TENANTS ||--o{ REFRESH_TOKENS : "scopes"
-    TENANTS ||--o{ OUTBOX_MESSAGES : "scopes (nullable)"
-    TENANTS ||--o{ AUDIT_LOGS : "scopes"
-
     USERS ||--o{ REFRESH_TOKENS : "owns"
-    USERS ||--o{ USER_ROLES : "assigned"
-    USERS ||--o{ USER_PERMISSIONS : "direct grant/deny"
-    ROLES ||--o{ USER_ROLES : "granted to"
-    ROLES ||--o{ ROLE_PERMISSIONS : "bundles"
-    PERMISSIONS ||--o{ ROLE_PERMISSIONS : "included in"
-    PERMISSIONS ||--o{ USER_PERMISSIONS : "applied to"
-
-    TENANTS {
-        uuid Id PK
-        varchar Code UK "tenant slug, globally unique"
-        varchar Name
-        bool IsActive
-        timestamp CreatedAt
-        timestamp UpdatedAt
-        bool IsDeleted
-    }
+    USERS }o--o{ ROLES : "RoleUser (implicit M:N)"
 
     USERS {
         uuid Id PK
-        uuid TenantId FK
-        varchar Email "UK per (TenantId, Email)"
+        varchar Email UK "global unique"
         varchar ImmutableEmail
-        varchar UserName "UK per (TenantId, UserName)"
         varchar FullName
+        varchar UserName UK "global unique"
         varchar PasswordHash
         varchar PhoneNumber
         bool IsActive
@@ -176,21 +164,154 @@ erDiagram
         timestamp PasswordResetExpiresAt
         timestamp PasswordResetUsedAt
         timestamp CreatedAt
-        timestamp UpdatedAt
+        timestamp UpdateAt
         bool IsDeleted
     }
 
     ROLES {
         uuid Id PK
-        uuid TenantId FK "nullable for system roles"
         varchar RoleType
-        varchar RoleName "UK per (TenantId, RoleName)"
+        varchar RoleName UK "global unique"
         varchar Description
-        bool IsSystem
         timestamp CreatedAt
-        timestamp UpdatedAt
+        timestamp UpdateAt
         bool IsDeleted
     }
+
+    REFRESH_TOKENS {
+        uuid Id PK
+        uuid UserId FK
+        varchar Token UK "raw token, stored as-is"
+        timestamp Expires
+        timestamp Created
+        varchar CreatedByIp
+        timestamp Revoked
+        varchar RevokedByIp
+        varchar ReplacedByToken
+        timestamp CreatedAt
+        timestamp UpdateAt
+        bool IsDeleted
+    }
+
+    OUTBOX_MESSAGE {
+        uuid Id PK
+        varchar Type
+        jsonb Payload
+        varchar Status
+        int RetryCount
+        timestamp CreatedAt
+        timestamp ProcessedAt
+        text LastError
+    }
+```
+
+> `RoleUser` is created implicitly by EF Core (`HasMany(...).WithMany(...)`) and carries only `RolesId` + `UsersId` (composite PK). There is **no** permissions table and **no** audit table in the current code. `OutboxMessage` exists but its worker is disabled.
+
+## 4.3 Table catalog (AS-IS, PostgreSQL)
+
+### `Users`
+| Column | Type | Key/Constraint |
+|---|---|---|
+| Id | uuid | **PK** |
+| Email | varchar(100) | not null; **unique (global)** |
+| ImmutableEmail | varchar(100) | not null (audit of original email) |
+| UserName | varchar(50) | not null; **unique (global)** |
+| FullName | varchar(100) | not null |
+| PasswordHash | varchar(500) | not null (BCrypt) |
+| PhoneNumber | varchar(30) | null |
+| IsActive | boolean | not null, default true (account enabled) |
+| IsEmailVerified | boolean | not null, default false |
+| AccessFailedCount | int | not null, default 0 |
+| LockoutEnd | timestamptz | null |
+| SecurityStamp | uuid | not null (session invalidation) |
+| LastLoginAt | timestamptz | null |
+| EmailVerificationToken | varchar(225) | owned value object (`EmailVerification`) |
+| EmailVerificationExpiresAt | timestamptz | owned |
+| EmailVerifiedAt | timestamptz | owned |
+| PasswordResetToken | varchar(225) | owned value object (`PasswordReset`) |
+| PasswordResetExpiresAt | timestamptz | owned |
+| PasswordResetUsedAt | timestamptz | owned |
+| CreatedAt | timestamptz | not null |
+| UpdateAt | timestamptz | null (note: property name is `UpdateAt`, not `UpdatedAt`) |
+| IsDeleted | boolean | not null, default false |
+
+Indexes: `IX_Users_UserName` **unique**, `IX_Users_Email` **unique** (both global and **not** filtered by `IsDeleted`). Query filter: `IsDeleted = false` (read path only).
+
+### `Roles`
+| Column | Type | Key/Constraint |
+|---|---|---|
+| Id | uuid | **PK** |
+| RoleType | varchar(50) | not null |
+| RoleName | varchar(100) | not null; **unique (global)** |
+| Description | varchar(100) | null |
+| CreatedAt | timestamptz | not null |
+| UpdateAt | timestamptz | null |
+| IsDeleted | boolean | not null, default false |
+
+Index: `IX_Roles_RoleName` **unique**. Query filter: `IsDeleted = false`. No `IsSystem` column exists yet.
+
+### `RoleUser` (implicit M:N)
+| Column | Type | Key/Constraint |
+|---|---|---|
+| RolesId | uuid | **PK**, **FK → Roles(Id)** |
+| UsersId | uuid | **PK**, **FK → Users(Id)** |
+
+Created by EF convention (`RolesId`/`UsersId` are the default column names for this navigation shape); no payload columns (`AssignedAt`/`AssignedBy` do not exist). Index: `IX_RoleUser_UsersId`.
+
+### `RefreshTokens`
+| Column | Type | Key/Constraint |
+|---|---|---|
+| Id | uuid | **PK** |
+| UserId | uuid | **FK → Users(Id)**, `ON DELETE RESTRICT` |
+| Token | varchar(500) | not null; **unique** — raw token stored as-is (no hashing yet) |
+| Expires | timestamptz | not null |
+| Created | timestamptz | not null |
+| CreatedByIp | varchar(100) | not null |
+| Revoked | timestamptz | null |
+| RevokedByIp | varchar(100) | null |
+| ReplacedByToken | varchar(500) | null (rotation chain) |
+| CreatedAt | timestamptz | not null |
+| UpdateAt | timestamptz | null |
+| IsDeleted | boolean | not null, default false (no query filter registered) |
+
+Index: `IX_RefreshTokens_Token` **unique**.
+
+### `OutboxMessage` (transactional outbox, worker currently disabled)
+| Column | Type | Key/Constraint |
+|---|---|---|
+| Id | uuid | **PK** |
+| Type | varchar(100) | not null |
+| Payload | jsonb | not null |
+| Status | varchar(20) | not null, default `Pending` |
+| RetryCount | int | not null, default 0 |
+| CreatedAt | timestamptz | not null, default `CURRENT_TIMESTAMP` |
+| ProcessedAt | timestamptz | null |
+| LastError | text | null |
+
+Indexes: `IDX_OutboxMessages_Type`, `IDX_OutboxMessages_Status_CreatedAt`. Table name is singular (`OutboxMessage`).
+
+### Hangfire schema
+Managed by Hangfire.PostgreSql in the same database — **do not** hand-modify. Consider a dedicated schema (`hangfire`) and a separate database for isolation in production.
+
+## 4.4 Single-tenancy & data isolation (AS-IS)
+
+- **Model:** one installation serves one user population; the database is shared only across the application's own modules.
+- **Isolation mechanism:** none is required beyond the `IsDeleted = false` global query filter on `User` and `Role`. There is no tenant discriminator, interceptor, or tenant-resolution service.
+- **Uniqueness:** `Email`, `UserName`, and `RoleName` are globally unique indexes.
+- **Implication:** if multi-tenancy is ever required (e.g. one deployment serving many customer organizations), it is a **new feature** that needs: `Tenants` table, `TenantId` on users/roles/tokens/outbox, global query filters, a tenant resolver, and composite unique keys. Do not document or implement it before that decision is made.
+
+## 4.5 TO-BE improvements (optional, non-tenant)
+
+These are the only target changes; **none of them add tenancy**.
+
+```mermaid
+erDiagram
+    USERS ||--o{ USER_ROLES : "assigned"
+    ROLES ||--o{ USER_ROLES : "granted to"
+    ROLES ||--o{ ROLE_PERMISSIONS : "bundles"
+    PERMISSIONS ||--o{ ROLE_PERMISSIONS : "included in"
+    USERS ||--o{ USER_PERMISSIONS : "direct grant/deny"
+    PERMISSIONS ||--o{ USER_PERMISSIONS : "applied to"
 
     PERMISSIONS {
         uuid Id PK
@@ -198,13 +319,11 @@ erDiagram
         varchar Resource
         varchar Action
         varchar Description
-        bool IsSystem
     }
 
     USER_ROLES {
         uuid UserId PK_FK
         uuid RoleId PK_FK
-        uuid TenantId FK
         timestamp AssignedAt
         uuid AssignedBy
     }
@@ -219,196 +338,47 @@ erDiagram
         uuid PermissionId PK_FK
         varchar Effect "Grant | Deny"
     }
-
-    REFRESH_TOKENS {
-        uuid Id PK
-        uuid TenantId FK
-        uuid UserId FK
-        varchar TokenHash UK "SHA-256, never plaintext"
-        timestamp Expires
-        timestamp Created
-        varchar CreatedByIp
-        timestamp Revoked
-        varchar RevokedByIp
-        varchar ReplacedByTokenHash
-        timestamp UpdatedAt
-        bool IsDeleted
-    }
-
-    OUTBOX_MESSAGES {
-        uuid Id PK
-        uuid TenantId FK "nullable"
-        varchar Type
-        jsonb Payload
-        varchar Status "Pending|Processing|Completed|Failed"
-        int RetryCount
-        timestamp CreatedAt
-        timestamp ProcessedAt
-        text LastError
-    }
-
-    AUDIT_LOGS {
-        uuid Id PK
-        uuid TenantId FK
-        uuid ActorUserId FK
-        varchar EventType
-        varchar EntityType
-        uuid EntityId
-        jsonb Metadata
-        varchar IpAddress
-        timestamp OccurredAt
-    }
 ```
 
-> Note: `USER_ROLES`, `ROLE_PERMISSIONS`, `USER_PERMISSIONS` use **composite primary keys** (shown with `PK_FK`). Mermaid cannot express composite keys visually; see the catalog below for exact PK/FK/index definitions.
-
-## 4.3 Table catalog (TO-BE, PostgreSQL)
-
-### `Tenants` (system-level, not tenant-scoped)
-| Column | Type | Key/Constraint |
+| Improvement | Target | Why |
 |---|---|---|
-| Id | uuid | **PK** |
-| Code | varchar(50) | **Unique**, not null (slug) |
-| Name | varchar(150) | not null |
-| IsActive | boolean | not null, default true |
-| CreatedAt / UpdatedAt | timestamptz | |
-| IsDeleted | boolean | not null, default false; partial index |
+| Permission model | `Permissions`, `RolePermissions`, `UserPermissions` | fine-grained authorization on top of existing roles |
+| Explicit join table | `UserRoles` with `AssignedAt`/`AssignedBy` | auditable role assignment (replaces implicit `RoleUser`) |
+| Refresh token hardening | `TokenHash` (SHA-256) instead of raw `Token`; rotation + reuse detection | a DB leak must not expose usable tokens |
+| Audit trail | `AuditLogs` (`ActorUserId`, `EventType`, `EntityType`, `EntityId`, `Metadata`, `IpAddress`, `OccurredAt`) | security forensics |
+| Soft-delete-safe unique keys | filtered unique indexes `WHERE IsDeleted = false` | current global unique index still blocks re-registration after soft delete |
+| Outbox activation | rename `OutboxMessage` → `OutboxMessages`, enable `OutboxWorkerService` | remove dual-write between DB commit and email enqueue |
 
-### `Users` (tenant-scoped)
-| Column | Type | Key/Constraint |
-|---|---|---|
-| Id | uuid | **PK** |
-| TenantId | uuid | **FK → Tenants(Id)**, not null |
-| Email | varchar(100) | not null; **unique (TenantId, Email) WHERE IsDeleted = false** |
-| ImmutableEmail | varchar(100) | not null (audit of original email) |
-| UserName | varchar(50) | not null; **unique (TenantId, UserName) WHERE IsDeleted = false** |
-| FullName | varchar(100) | not null |
-| PasswordHash | varchar(500) | not null (BCrypt) |
-| PhoneNumber | varchar(30) | null |
-| IsActive | boolean | not null (account enabled) |
-| IsEmailVerified | boolean | **derived** — recommend dropping; use `EmailVerifiedAt` |
-| AccessFailedCount | int | not null, default 0 |
-| LockoutEnd | timestamptz | null |
-| SecurityStamp | uuid | not null (session invalidation) |
-| LastLoginAt | timestamptz | null |
-| EmailVerificationToken | varchar(225) | owned value object (`EmailVerification`) |
-| EmailVerificationExpiresAt | timestamptz | owned |
-| EmailVerifiedAt | timestamptz | owned |
-| PasswordResetToken | varchar(225) | owned value object (`PasswordReset`) |
-| PasswordResetExpiresAt | timestamptz | owned |
-| PasswordResetUsedAt | timestamptz | owned |
-| CreatedAt / UpdatedAt | timestamptz | |
-| IsDeleted | boolean | soft delete; filtered unique indexes above |
-
-Indexes: `UX_Users_Tenant_Email (TenantId, Email) WHERE IsDeleted=false`, `UX_Users_Tenant_UserName (TenantId, UserName) WHERE IsDeleted=false`, `IX_Users_TenantId`.
-
-### `Roles` (tenant-scoped, with system roles)
-| Column | Type | Key/Constraint |
-|---|---|---|
-| Id | uuid | **PK** |
-| TenantId | uuid | **FK → Tenants(Id)**, nullable for `IsSystem = true` |
-| RoleType | varchar(50) | not null |
-| RoleName | varchar(100) | not null; **unique (TenantId, RoleName) WHERE IsDeleted=false** |
-| Description | varchar(100) | |
-| IsSystem | boolean | not null (global/shared role) |
-| timestamps + IsDeleted | | |
-
-### `Permissions` (global catalog)
-| Column | Type | Key/Constraint |
-|---|---|---|
-| Id | uuid | **PK** |
-| Code | varchar(100) | **Unique**, not null — `resource:action` |
-| Resource | varchar(50) | not null |
-| Action | varchar(50) | not null |
-| Description | varchar(200) | |
-| IsSystem | boolean | not null |
-
-Seed examples: `identity.user.read`, `identity.user.write`, `identity.role.manage`, `identity.permission.manage`, `audit.read`.
-
-### `UserRoles` (explicit M:N, replaces implicit `RoleUser`)
-| Column | Type | Key/Constraint |
-|---|---|---|
-| UserId | uuid | **PK**, **FK → Users(Id)** (Cascade) |
-| RoleId | uuid | **PK**, **FK → Roles(Id)** (Restrict) |
-| TenantId | uuid | **FK → Tenants(Id)** |
-| AssignedAt | timestamptz | not null, default now() |
-| AssignedBy | uuid | null, FK → Users(Id) (audit) |
-
-Index: `IX_UserRoles_TenantId`, `IX_UserRoles_RoleId`.
-
-### `RolePermissions` / `UserPermissions`
-- `RolePermissions(RoleId PK/FK, PermissionId PK/FK)` — role → permission bundle.
-- `UserPermissions(UserId PK/FK, PermissionId PK/FK, Effect)` — optional direct grant/deny; `Effect ∈ {Grant, Deny}`, `Deny` overrides `Grant`.
-
-### `RefreshTokens` (tenant-scoped, hardened)
-| Column | Type | Key/Constraint |
-|---|---|---|
-| Id | uuid | **PK** |
-| TenantId | uuid | **FK → Tenants(Id)** |
-| UserId | uuid | **FK → Users(Id)**, `ON DELETE RESTRICT` |
-| TokenHash | varchar(500) | **Unique**, SHA-256 of the raw token (never plaintext) |
-| Expires | timestamptz | not null |
-| Created | timestamptz | not null |
-| CreatedByIp | varchar(100) | not null |
-| Revoked | timestamptz | null |
-| RevokedByIp | varchar(100) | null |
-| ReplacedByTokenHash | varchar(500) | null (rotation chain) |
-| UpdatedAt | timestamptz | |
-| IsDeleted | boolean | (add query filter, or drop the column) |
-
-### `OutboxMessages` (transactional outbox)
-Same as AS-IS plus **`TenantId`** (nullable). Indexes: `IDX_OutboxMessages_Type`, `IDX_OutboxMessages_Status_CreatedAt`, plus `IX_OutboxMessages_TenantId`.
-
-### `AuditLogs` (new, TO-BE)
-Append-only security/action audit. Indexes on `(TenantId, OccurredAt)` and `(ActorUserId)`.
-
-### Hangfire schema
-Managed by Hangfire.PostgreSql in the same database — **do not** hand-modify. Consider a dedicated schema (`hangfire`) and a separate database for isolation in production.
-
-## 4.4 Multi-tenancy strategy (TO-BE)
-
-**Model:** shared database, `TenantId` column, enforced at two layers:
-
-1. **EF Core global query filters** — every tenant-scoped entity implements `ITenantScoped { Guid TenantId }`; `AppDbContext.OnModelCreating` applies `HasQueryFilter(e => e.TenantId == _tenantContext.TenantId)`.
-2. **Write enforcement** — `SaveChanges` interceptor stamps `TenantId` on inserts and rejects cross-tenant writes.
-
-**Tenant resolution (request scope):** resolve tenant from (in priority order) JWT `tenant_id` claim → request header `X-Tenant-Id` (for anonymous endpoints) → subdomain → default. Expose via `ITenantContext` (scoped).
-
-**Uniqueness:** all business unique keys become **composite with `TenantId`** (email, username, role name) and use **filtered indexes** (`WHERE IsDeleted = false`) to avoid the soft-delete vs unique-index conflict.
-
-**System roles/permissions:** `Roles.TenantId = NULL` + `IsSystem = true` are shared; user-created roles are tenant-scoped.
-
-## 4.5 Access control model (TO-BE)
+## 4.6 Access control model (RBAC now — permissions TO-BE)
 
 ```mermaid
 flowchart LR
-  U[User] -->|UserRoles| R[Role]
-  R -->|RolePermissions| P[Permission resource:action]
-  U -.->|UserPermissions: Grant/Deny| P
-  P --> C[JWT claim: permissions]
-  C --> POL[ASP.NET Core Policy / PermissionRequirement]
+  U[User] -->|RoleUser| R[Role]
+  R -.->|RolePermissions TO-BE| P[Permission resource:action]
+  U -.->|UserPermissions TO-BE: Grant/Deny| P
+  R -->|JWT role claims| C[ClaimsPrincipal]
+  P -.->|JWT permissions claim TO-BE| C
+  C --> POL["ASP.NET Core Policy / [Authorize]"]
 ```
 
-- **RBAC core:** users → roles → permissions.
-- **Fine-grained overrides:** `UserPermissions` with `Deny` precedence.
-- **Token claims:** on login, flatten effective permissions into a `permissions` claim (list) and roles into `role` claims.
-- **Enforcement:** a `PermissionAuthorizationHandler` + `[HasPermission("identity.user.read")]` attribute; existing `"Admin"`/`"User"` policies retained for backward compatibility.
-- **Tenant isolation in authorization:** permission checks are scoped to the caller's `TenantId`.
+- **AS-IS (implemented):** users → roles only. `TokenGenerator` emits one `ClaimTypes.Role` claim per role (`sub`, `email`, `unique_name`, `jti`, `role`). Authorization uses role-based policies such as `[Authorize(Policy = "Admin")]`.
+- **TO-BE:** flatten effective permissions into a `permissions` claim and enforce with a `PermissionAuthorizationHandler` + `[HasPermission("identity.user.read")]`; existing role policies stay for backward compatibility.
+- **Deny precedence (TO-BE):** `UserPermissions.Effect = Deny` overrides grants.
 
-## 4.6 AS-IS → TO-BE delta (Identity context)
+## 4.7 AS-IS → TO-BE delta (Identity context)
 
 | Item | AS-IS | TO-BE |
 |---|---|---|
-| Multi-tenancy | none | `Tenants` + `TenantId` on Users/Roles/RefreshTokens/Outbox/UserRoles |
+| Tenancy | single-tenant, no `TenantId` | unchanged (no multi-tenancy planned) |
 | Join table | implicit `RoleUser` | explicit `UserRoles` (+ AssignedAt/AssignedBy) |
 | Permissions | none | `Permissions`, `RolePermissions`, `UserPermissions` |
 | Refresh token storage | plaintext `Token` | `TokenHash` (SHA-256) |
-| Email verified flag | bool + `EmailVerifiedAt` (dup) | derive from `EmailVerifiedAt` |
-| Unique indexes | `Email`, `UserName` (global) | composite `(TenantId, X)` + filtered `WHERE IsDeleted=false` |
+| Email verified flag | `IsEmailVerified` + owned `EmailVerifiedAt` (duplicate) | derive one from `EmailVerifiedAt` |
+| Unique indexes | global `IX_Users_Email` / `IX_Users_UserName` (unfiltered) | keep global, make filtered `WHERE IsDeleted = false` |
 | Audit | none | `AuditLogs` |
-| Outbox | entity exists, worker disabled | promoted to active delivery mechanism |
+| Outbox | table `OutboxMessage` exists, worker disabled | renamed `OutboxMessages`, promoted to active delivery mechanism |
 
-## 4.7 ERD — Catalog context (legacy, AS-IS)
+## 4.8 ERD — Catalog context (legacy, AS-IS)
 
 ```mermaid
 erDiagram
@@ -429,7 +399,7 @@ erDiagram
     }
 ```
 
-> `Support.Platform` uses SQL Server (prod) / InMemory (dev); `Command` uses InMemory. TO-BE recommendation: give both a durable store (PostgreSQL to consolidate the stack) and apply `TenantId` only if the catalog is exposed per-tenant.
+> `Support.Platform` uses SQL Server (prod) / InMemory (dev); `Command` uses InMemory. TO-BE recommendation: give both a durable store (PostgreSQL to consolidate the stack). The catalog is **not** tenant-scoped.
 
 ---
 
@@ -608,7 +578,7 @@ flowchart TB
 
 # 6. Section 3 — Data Flow & Security Sequence Diagrams
 
-## 6.1 Login + token issuance (AS-IS logic, TO-BE adds `tenant_id` + `permissions` claims)
+## 6.1 Login + token issuance (AS-IS logic, TO-BE adds the `permissions` claim)
 
 ```mermaid
 sequenceDiagram
@@ -626,7 +596,7 @@ sequenceDiagram
   AC->>AC: ModelState validation
   AC->>LH: HandleAsync(LoginCommand)
   LH->>R: GetUserByEmailAsync(email)
-  R->>DB: SELECT user + roles (tenant-filtered)
+  R->>DB: SELECT user + roles
   DB-->>R: user or null
   R-->>LH: user
   LH->>U: ValidateLogin() (active? locked out?)
@@ -642,7 +612,7 @@ sequenceDiagram
     else correct
       LH->>U: RecordSuccessfulLogin()
       LH->>T: GenerateAccessToken(user)
-      T-->>LH: JWT (sub, email, role, [tenant_id, permissions])
+      T-->>LH: JWT (sub, email, role, [permissions])
       LH->>T: GeneratorRefreshToken(ip)
       LH->>U: AddRefreshToken(refreshToken)
       LH->>R: SaveChangesAsync()
@@ -669,7 +639,7 @@ sequenceDiagram
   alt invalid/expired
     JWT-->>C: 401 Unauthorized
   else valid
-    JWT->>JWT: Build ClaimsPrincipal (sub, email, role, permissions, tenant_id)
+    JWT->>JWT: Build ClaimsPrincipal (sub, email, role, permissions)
     JWT->>AUTHZ: Evaluate [Authorize(Policy = "Admin")] / [HasPermission("identity.user.read")]
     alt policy/permission not satisfied
       AUTHZ-->>C: 403 Forbidden
@@ -933,7 +903,6 @@ flowchart LR
 | Identity managers | `RoleController` uses `RoleManager<IdentityRole>`/`UserManager<User>` but DbContext is not `IdentityDbContext` — reconcile or remove. |
 | Transport | Enforce HTTPS (`UseHttpsRedirection`, HSTS); TLS termination at ingress. |
 | Hangfire dashboard | Strong basic auth + HTTPS + network allow-list; consider SSO. |
-| Tenancy | JWT `tenant_id` validated against `Tenants`; guard against tenant spoofing via headers. |
 | Input/OWASP | Validate DTOs; rate-limit auth endpoints (not present AS-IS). |
 
 ---
@@ -943,7 +912,7 @@ flowchart LR
 - **Transactions:** single boundary in `ExecuteInTransactionAsync` (begin → work → save → commit; rollback on throw). Side effects (email) are enqueued after commit.
 - **Outbox (target):** for exactly-once delivery semantics of integration events; the `OutboxMessages` table + worker already exist and should be enabled.
 - **Idempotency:** background jobs and outbox consumers must be idempotent.
-- **Multi-tenancy:** query filters + write stamping + composite keys; a tenant must never read another tenant's rows.
+- **Data isolation:** single-tenant deployment; the only automatic filter is `IsDeleted = false` on `User` and `Role`. No tenant filter exists or is planned.
 - **Contract libraries:** `Support.*.Client` are the anti-corruption seam between modules/services; version them.
 
 ---
@@ -952,36 +921,32 @@ flowchart LR
 
 | # | Risk / Gap | Severity | Recommendation |
 |---|---|---|---|
-| 1 | No multi-tenancy in data model | High | Introduce `Tenants` + `TenantId`, query filters, composite unique keys (this blueprint). |
-| 2 | Authorization is roles-only; some admin endpoints unprotected | High | Add permission model; enforce `[Authorize]`/`[HasPermission]` everywhere. |
-| 3 | JWT signing key & credentials committed in `appsettings.json` | Critical | Move to secrets; rotate; adopt RS256. |
-| 4 | Refresh tokens stored plaintext | High | Store SHA-256 hash; add rotation/reuse detection. |
-| 5 | Dual-write (DB commit + Hangfire enqueue) | Medium | Enable transactional outbox. |
-| 6 | Notification module coupled inside Auth host | Medium | Extract to its own deployment (worker) when load/ownership demands. |
-| 7 | Two heterogeneous subsystems (PostgreSQL vs SQL Server/InMemory) | Medium | Consolidate persistence; migrate `Command` off InMemory. |
-| 8 | No Dockerfile/CI for modern services | Medium | Add multi-stage Dockerfiles + CI/CD + migration job. |
-| 9 | Soft-delete vs unique index conflict | Medium | Filtered unique indexes `WHERE IsDeleted = false`. |
-| 10 | No health checks, rate limiting, or OTel | Medium | Add probes, limiter on auth endpoints, OTel pipeline. |
-| 11 | Redundant `IsEmailVerified` vs `EmailVerifiedAt` | Low | Derive one from the other. |
-| 12 | Inconsistent table naming (`OutboxMessage`, `RoleUser`) | Low | Standardize (`OutboxMessages`, `UserRoles`). |
+| 1 | Authorization is roles-only; some admin endpoints unprotected | High | Add permission model; enforce `[Authorize]`/`[HasPermission]` everywhere. |
+| 2 | JWT signing key & credentials committed in `appsettings.json` | Critical | Move to secrets; rotate; adopt RS256. |
+| 3 | Refresh tokens stored plaintext | High | Store SHA-256 hash; add rotation/reuse detection. |
+| 4 | Dual-write (DB commit + Hangfire enqueue) | Medium | Enable transactional outbox. |
+| 5 | Notification module coupled inside Auth host | Medium | Extract to its own deployment (worker) when load/ownership demands. |
+| 6 | Two heterogeneous subsystems (PostgreSQL vs SQL Server/InMemory) | Medium | Consolidate persistence; migrate `Command` off InMemory. |
+| 7 | No Dockerfile/CI for modern services | Medium | Add multi-stage Dockerfiles + CI/CD + migration job. |
+| 8 | Soft-delete vs unique index conflict | Medium | Filtered unique indexes `WHERE IsDeleted = false`. |
+| 9 | No health checks, rate limiting, or OTel | Medium | Add probes, limiter on auth endpoints, OTel pipeline. |
+| 10 | Redundant `IsEmailVerified` vs `EmailVerifiedAt` | Low | Derive one from the other. |
+| 11 | Inconsistent table naming (`OutboxMessage`, `RoleUser`) | Low | Standardize (`OutboxMessages`, `UserRoles`). |
 
 ---
 
 # 10. Open Decisions & Roadmap
 
 **Open decisions**
-1. Tenant resolution precedence (JWT claim vs subdomain vs header) for pre-auth endpoints.
-2. Whether `Users.TenantId` may change (tenant transfer) or is immutable.
-3. Permission catalog governance (who seeds/edits `Permissions`).
-4. JWT algorithm migration (HS256 → RS256) and key distribution.
-5. Legacy subsystem: keep SQL Server, or migrate to PostgreSQL to unify.
+1. Permission catalog governance (who seeds/edits `Permissions`).
+2. JWT algorithm migration (HS256 → RS256) and key distribution.
+3. Legacy subsystem: keep SQL Server, or migrate to PostgreSQL to unify.
 
 **Suggested roadmap**
 - **Phase 1 (Foundation):** secrets hardening, Dockerfiles + CI, health checks, enable HTTPS/HSTS, protect admin endpoints.
 - **Phase 2 (Security):** refresh-token hashing + rotation, permission model + policy handler, audit logging.
-- **Phase 3 (Tenancy):** `Tenants` + `TenantId`, query filters, composite keys, tenant resolution, data backfill for a default tenant.
-- **Phase 4 (Reliability):** activate transactional outbox; extract notification worker; add rate limiting + OTel.
-- **Phase 5 (Consolidation):** unify persistence, Helm/Kustomize overlays, staging/prod GitOps.
+- **Phase 3 (Reliability):** activate transactional outbox; extract notification worker; add rate limiting + OTel.
+- **Phase 4 (Consolidation):** unify persistence, Helm/Kustomize overlays, staging/prod GitOps.
 
 ---
 
