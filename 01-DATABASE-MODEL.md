@@ -17,7 +17,7 @@ flowchart LR
   subgraph IAM["Identity & Access context (PostgreSQL: supportdb)"]
     direction TB
     A1[Users, Roles, RoleUser]
-    A2[RefreshTokens, OutboxMessage]
+    A2[RefreshTokens]
     A3[(Hangfire schema)]
   end
   subgraph CAT["Catalog context (legacy)"]
@@ -90,20 +90,9 @@ erDiagram
         timestamp UpdateAt
         bool IsDeleted
     }
-
-    OUTBOX_MESSAGE {
-        uuid Id PK
-        varchar Type
-        jsonb Payload
-        varchar Status
-        int RetryCount
-        timestamp CreatedAt
-        timestamp ProcessedAt
-        text LastError
-    }
 ```
 
-> `RoleUser` is created implicitly by EF Core (`HasMany(...).WithMany(...)`) and carries only `RolesId` + `UsersId` (composite PK). There is **no** permissions table and **no** audit table in the current code. `OutboxMessage` exists but its worker is disabled.
+> `RoleUser` is created implicitly by EF Core (`HasMany(...).WithMany(...)`) and carries only `RolesId` + `UsersId` (composite PK). There is **no** permissions table and **no** audit table in the current code. 
 
 ## 1.3 Table catalog (AS-IS, PostgreSQL)
 
@@ -174,19 +163,6 @@ Created by EF convention (`RolesId`/`UsersId` are the default column names for t
 
 Index: `IX_RefreshTokens_Token` **unique**.
 
-### `OutboxMessage` (transactional outbox, worker currently disabled)
-| Column | Type | Key/Constraint |
-|---|---|---|
-| Id | uuid | **PK** |
-| Type | varchar(100) | not null |
-| Payload | jsonb | not null |
-| Status | varchar(20) | not null, default `Pending` |
-| RetryCount | int | not null, default 0 |
-| CreatedAt | timestamptz | not null, default `CURRENT_TIMESTAMP` |
-| ProcessedAt | timestamptz | null |
-| LastError | text | null |
-
-Indexes: `IDX_OutboxMessages_Type`, `IDX_OutboxMessages_Status_CreatedAt`. Table name is singular (`OutboxMessage`).
 
 ### Hangfire schema
 Managed by Hangfire.PostgreSql in the same database — **do not** hand-modify. Consider a dedicated schema (`hangfire`) and a separate database for isolation in production.
