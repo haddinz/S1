@@ -124,11 +124,6 @@ app.UseAuthentication();
 
 app.UseAuthorization();
 
-// var dashboardUser = builder.Configuration["HangfireDashboard:Login"] ?? "admin";
-// var dashboardPass = builder.Configuration["HangfireDashboard:Password"] ?? "password";
-// var dashboardSsl = builder.Configuration.GetValue<bool>("HangfireDashboard:Ssl", false);
-// var dashboardSslRedirect = builder.Configuration.GetValue<bool>("HangfireDashboard:SslRedirect", false);
-
 HangfireDashboard hangfireDashboard = app.Services
     .GetRequiredService<IOptions<HangfireDashboard>>().Value;
 

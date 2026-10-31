@@ -50,8 +50,8 @@ public sealed class AuthController : ControllerBase
         _resetPasswordHandler = resetPasswordHandler;
     }
 
-    [HttpPost("register")]
     [AllowAnonymous]
+    [HttpPost("register")]
     public async Task<IActionResult> Register(
         [FromBody] RegisterRequest request,
         CancellationToken cancellationToken
@@ -76,8 +76,8 @@ public sealed class AuthController : ControllerBase
         return Ok(ApiResponse.Success("User register successfully"));
     }
 
-    [HttpPost("login")]
     [AllowAnonymous]
+    [HttpPost("login")]
     public async Task<ActionResult<AuthResponse>> Login(
         [FromBody] LoginRequest request,
         CancellationToken cancellationToken
@@ -229,8 +229,8 @@ public sealed class AuthController : ControllerBase
         return Ok(ApiResponse.Success("Resend Verify Email Successfully"));
     }
 
-    [HttpPost("logout")]
     [Authorize]
+    [HttpPost("logout")]
     public async Task<ActionResult> Logout(
         [FromBody] RefreshTokenRequest request,
         CancellationToken cancellationToken

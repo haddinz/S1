@@ -17,6 +17,8 @@ public interface IAuthRepositories : IBaseRepositories
     Task UpdateAsync(User user, CancellationToken cancellationToken = default);
     Task<RefreshToken?> GetRefreshTokenAsync(string token, CancellationToken cancellationToken = default);
 
+
+    // ToDo : For GET scenario will get update using Dapper instead using EFcore for coplectifitas query
     Task<(IReadOnlyList<User> Users, int TotalPages)> GetPagedUsersAsync(int pageNumber, int pageSize, CancellationToken cancellation = default);
 
     Task<User?> GetUserByEmailVerificationTokenAsync(string token, CancellationToken cancellationToken = default);

@@ -30,6 +30,7 @@ public sealed class ExceptionMiddleware
                 ex is not NotFoundException
                 && ex is not ConflictException
                 && ex is not BusinessValidationException
+                && ex is not UnauthorizedException
             )
                 _logger.LogError(
                     ex,
@@ -82,6 +83,7 @@ public sealed class ExceptionMiddleware
         context.Response.ContentType = "application/json";
         context.Response.StatusCode = statuscode;
 
-        await context.Response.WriteAsJsonAsync(JsonSerializer.Serialize(errorResponse));
+        // await context.Response.WriteAsJsonAsync(JsonSerializer.Serialize(errorResponse));
+        await context.Response.WriteAsJsonAsync(errorResponse);
     }
 }
