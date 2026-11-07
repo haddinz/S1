@@ -140,3 +140,18 @@
 | Fase 4 | — | ❌ skip |
 | Fase 5 | 5 item | ⬜ opsional |
 | Keputusan | 7 item | ⬜ belum dijawab |
+
+
+
+
+Saya akan memberikan koreksi juga
+
+Usulan perubahan:
+Arsitektur saat ini adalah modular monolith. Pemisahan Client dan Id digunakan untuk menjaga batas kontrak dan implementasi. Struktur ini juga memungkinkan ekstraksi service di masa depan apabila suatu saat memang diperlukan. Namun, ekstraksi menjadi microservices bukan target wajib project.
+Dengan begitu, agent tidak akan terus-menerus mengarahkan desain menuju microservices.
+
+Pahami tujuan awal kenapa dipakai modular monolit. Kalau ada waktu maka saya akan pakai microservice.
+Modular ini ialah solusi sementara yang saya pertahankan sebelum bener bener pindah ke minroservice tidak ada big update.
+
+OutboxMessage
+Sudah tidak lagi digunakan, semua sudah pindah menggunakan hangfire.

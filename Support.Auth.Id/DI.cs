@@ -6,12 +6,14 @@ using Support.Auth.Id.Common.CommandQuery;
 using Support.Auth.Id.Features.Handler.Users;
 using Support.Auth.Id.Commons.Command;
 using Support.Auth.Id.Features.Handler.Auth;
+using Support.Auth.Id.Features.Handler.Roles;
 using Support.Auth.Id.Features.Security;
 using Support.Auth.Id.Services;
 using Support.Notification.Client.Contract;
 using Support.Notification.Client.Id.Services;
 using Support.Auth.Id.Models.DTOs;
 using Support.Auth.Id.Services.BackgroundServices;
+using RoleResponse = Support.Auth.Client.DTOs.Response.RoleResponse;
 
 namespace Support.Auth.Id;
 
@@ -29,6 +31,7 @@ public static class DependencyInjection
 
         // Add Repository
         services.AddScoped<IAuthRepositories, AuthRepositories>();
+        services.AddScoped<IRoleRepositories, RoleRepositories>();
 
         // Add Security Services
         services.AddScoped<IPasswordPolicyValidator, PasswordPolicyValidator>();
@@ -49,6 +52,13 @@ public static class DependencyInjection
         services.AddScoped<ICommandHandler<ResendVerifyEmailCommand>, ResendVerifyEmailCommandHandler>();
         services.AddScoped<ICommandHandler<ForgotPasswordCommand>, ForgotPasswordCommandHandler>();
         services.AddScoped<ICommandHandler<ResetPasswordCommand>, ResetPasswordCommandHandler>();
+
+        // Add Handler Role
+        services.AddScoped<ICommandHandler<CreateRoleCommand>, CreateRoleCommandHandler>();
+        services.AddScoped<
+            ICommandQueryHandler<GetRoleByIdQuery, RoleResponse>,
+            GetRoleByIdQueryHandler
+        >();
 
         return services;
     }

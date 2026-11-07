@@ -74,6 +74,7 @@ coverage/
 
 # Local Agent Rules
 AGENTS.md
+SHARED-ABSTRACTIONS.md
 
 # .NET Local Tools
 dotnet-tools.json

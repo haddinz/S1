@@ -7,30 +7,41 @@ namespace Support.Auth.Id.Features.Handler.Roles;
 
 public class CreateRoleCommand : ICommand
 {
-    public string RoleType { get; init ;} = string.Empty;
-    public string RoleName { get; init ;} = string.Empty;
-    public string Description { get; init ;} = string.Empty;
+    public string RoleType { get; init; } = string.Empty;
+    public string RoleName { get; init; } = string.Empty;
+    public string Description { get; init; } = string.Empty;
 }
 
 public class CreateRoleCommandHandler : ICommandHandler<CreateRoleCommand>
 {
-    private readonly ILogger _logger;
+    private readonly ILogger<CreateRoleCommandHandler> _logger;
     private readonly IRoleRepositories _roleRepo;
 
-    public CreateRoleCommandHandler(ILogger logger, IRoleRepositories roleRepo)
+    public CreateRoleCommandHandler(
+        ILogger<CreateRoleCommandHandler> logger,
+        IRoleRepositories roleRepo
+    )
     {
         _logger = logger;
         _roleRepo = roleRepo;
     }
 
-    public async Task HandleAsync(CreateRoleCommand command, CancellationToken cancellationToken = default)
+    public async Task HandleAsync(
+        CreateRoleCommand command,
+        CancellationToken cancellationToken = default
+    )
     {
         _logger.LogInformation("--> Hit CreateRoleCommandHandler at AuthServices");
 
-        if(await _roleRepo.IsRoleTypeExists(command.RoleType, cancellationToken))
-            throw new ConflictException("Email already exists");
+        if (await _roleRepo.IsRoleTypeExists(command.RoleType, cancellationToken))
+            throw new ConflictException($"Role type '{command.RoleType}' already exists.");
+
+        if (await _roleRepo.IsRoleNameExists(command.RoleName, cancellationToken))
+            throw new ConflictException($"Role name '{command.RoleName}' already exists.");
 
         Role role = Role.Create(command.RoleType, command.RoleName, command.Description);
+
         await _roleRepo.AddRoleAsync(role, cancellationToken);
+        await _roleRepo.SaveChangesAsync(cancellationToken);
     }
 }

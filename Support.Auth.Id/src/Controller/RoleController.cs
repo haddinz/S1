@@ -4,6 +4,7 @@ using Support.Auth.Client.DTOs.Request;
 using Support.Auth.Client.DTOs.Request.Role;
 using Support.Auth.Client.DTOs.Response;
 using Support.Auth.Id.Commons.Command;
+using Support.Auth.Id.Common.CommandQuery;
 using Support.Auth.Id.Domain.Entity;
 using Support.Auth.Id.Extention;
 using Support.Auth.Id.Features.Handler.Roles;
@@ -15,19 +16,29 @@ namespace Support.Auth.Id.Controller;
 public class RoleController : ControllerBase
 {
     private readonly ICommandHandler<CreateRoleCommand> _createRoleHandler;
+    private readonly ICommandQueryHandler<GetRoleByIdQuery, RoleResponse> _getRoleByIdHandler;
 
-    public RoleController(ICommandHandler<CreateRoleCommand> createRoleHandler)
+    public RoleController(
+        ICommandHandler<CreateRoleCommand> createRoleHandler,
+        ICommandQueryHandler<GetRoleByIdQuery, RoleResponse> getRoleByIdHandler
+    )
     {
         _createRoleHandler = createRoleHandler;
+        _getRoleByIdHandler = getRoleByIdHandler;
     }
 
     [Authorize(Policy = "Admin")]
     [HttpGet]
-    public async Task<IActionResult> GetRoleById(Guid roleID)
+    public async Task<IActionResult> GetRoleById(Guid roleID, CancellationToken cancellationToken)
     {
-        // var roleId = await _roleManager.GetRoleIdAsync(roleID.ToString());
+        GetRoleByIdQuery query = new()
+        {
+            RoleId = roleID
+        };
 
-        return Ok();
+        RoleResponse role = await _getRoleByIdHandler.HandleAsync(query, cancellationToken);
+
+        return Ok(ApiResponse.Success(role, "Role retrieved successfully"));
     }
 
     [Authorize(Policy = "Admin")]
@@ -48,9 +59,10 @@ public class RoleController : ControllerBase
 
         await _createRoleHandler.HandleAsync(command, cancellationToken);
 
-        return Ok(ApiResponse.Success("User register successfully"));
+        return Ok(ApiResponse.Success($"Role '{request.RoleName}' created successfully"));
     }
 
+    [Authorize(Policy = "Admin")]
     [HttpPost("assign-role")]
     public async Task<IActionResult> AssignRole([FromBody] AssignRoleRequest dto)
     {

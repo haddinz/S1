@@ -16,6 +16,6 @@ public sealed class RoleConfiguration : IEntityTypeConfiguration<Role>
         builder.Property(x => x.RoleName).HasMaxLength(100).IsRequired();
         builder.Property(x => x.Description).HasMaxLength(100);
 
-        builder.HasIndex(x => x.RoleName).IsUnique();
+        builder.HasIndex(x => x.RoleType).IsUnique();
     }
 }
