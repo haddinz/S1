@@ -8,12 +8,7 @@ using Support.Auth.Id.Commons.Command;
 using Support.Auth.Id.Features.Handler.Auth;
 using Support.Auth.Id.Features.Handler.Roles;
 using Support.Auth.Id.Features.Security;
-using Support.Auth.Id.Services;
-using Support.Notification.Client.Contract;
-using Support.Notification.Client.Id.Services;
-using Support.Auth.Id.Models.DTOs;
-using Support.Auth.Id.Services.BackgroundServices;
-using RoleResponse = Support.Auth.Client.DTOs.Response.RoleResponse;
+using Support.Auth.Client.DTOs.Response;
 
 namespace Support.Auth.Id;
 
@@ -55,10 +50,12 @@ public static class DependencyInjection
 
         // Add Handler Role
         services.AddScoped<ICommandHandler<CreateRoleCommand>, CreateRoleCommandHandler>();
-        services.AddScoped<
-            ICommandQueryHandler<GetRoleByIdQuery, RoleResponse>,
-            GetRoleByIdQueryHandler
-        >();
+        services.AddScoped<ICommandHandler<UpdateRoleCommand>, UpdateRoleCommandHandler>();
+        services.AddScoped<ICommandHandler<DeleteRoleCommand>, DeleteRoleCommandHandler>();
+        services.AddScoped<ICommandHandler<AssignRoleCommand>, AssignRoleCommandHandler>();
+        services.AddScoped<ICommandHandler<RevokeRoleCommand>, RevokeRoleCommandHandler>();
+        services.AddScoped<ICommandQueryHandler<GetRoleByIdQuery, RoleResponse>, GetRoleByIdQueryHandler>();
+        services.AddScoped<ICommandQueryHandler<GetRolesQuery, PagedResponse<RoleResponse>>, GetRolesQueryHandler>();
 
         return services;
     }

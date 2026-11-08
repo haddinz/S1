@@ -1,4 +1,5 @@
 using Support.Auth.Id.Domain.Entity;
+using Support.Auth.Id.Exceptions;
 
 namespace Support.Auth.Id.Models.Entity;
 
@@ -32,5 +33,20 @@ public class Role : BaseModels
             RoleType = roleType,
             Description = desc,
         };
+    }
+
+    public void Update(string roleType, string roleName, string description)
+    {
+        if (string.IsNullOrWhiteSpace(roleType))
+            throw new BusinessValidationException("Role type cannot be empty.");
+
+        if (string.IsNullOrWhiteSpace(roleName))
+            throw new BusinessValidationException("Role name cannot be empty.");
+
+        RoleType = roleType.Trim();
+        RoleName = roleName.Trim();
+        Description = string.IsNullOrWhiteSpace(description) ? string.Empty : description.Trim();
+
+        SetUpdate();
     }
 }

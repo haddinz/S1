@@ -1,3 +1,4 @@
+using Support.Auth.Client.DTOs.Response;
 using Support.Auth.Id.Common.CommandQuery;
 using Support.Auth.Id.Domain.Entity;
 using Support.Auth.Id.Models.DTOs.Request;

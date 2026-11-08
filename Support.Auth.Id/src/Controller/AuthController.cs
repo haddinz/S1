@@ -1,8 +1,8 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Support.Auth.Client.DTOs.Request;
+using Support.Auth.Client.DTOs.Response;
 using Support.Auth.Id.Commons.Command;
 using Support.Auth.Id.Exceptions;
 using Support.Auth.Id.Extention;
@@ -10,7 +10,6 @@ using Support.Auth.Id.Features.Handler.Auth;
 using Support.Auth.Id.Models.DTOs;
 using Support.Auth.Id.Models.DTOs.Request;
 using Support.Auth.Id.Models.DTOs.Response;
-using Support.Auth.Id.Services.Interfaces;
 
 namespace Support.Auth.Id.Controller;
 

@@ -1,5 +1,5 @@
 using Microsoft.AspNetCore.Mvc.ModelBinding;
-using Support.Auth.Id.Models.DTOs.Response;
+using Support.Auth.Client.DTOs.Response;
 
 namespace Support.Auth.Id.Extention;
 

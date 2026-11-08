@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Support.Auth.Client.DTOs.Response;
 using Support.Auth.Id.Common.CommandQuery;
 using Support.Auth.Id.Commons.Command;
 using Support.Auth.Id.Exceptions;
