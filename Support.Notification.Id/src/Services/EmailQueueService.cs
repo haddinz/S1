@@ -9,7 +9,7 @@ public sealed class EmailQueueService : IEmailQueueServiceClient
 {
     private readonly ILogger _logger;
 
-    public EmailQueueService(ILogger logger)
+    public EmailQueueService(ILogger<EmailQueueService> logger)
     {
         _logger = logger;
     }

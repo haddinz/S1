@@ -248,7 +248,7 @@ namespace Support.Auth.Id.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("RoleName")
+                    b.HasIndex("RoleType")
                         .IsUnique();
 
                     b.ToTable("Roles", (string)null);

@@ -155,3 +155,7 @@ Modular ini ialah solusi sementara yang saya pertahankan sebelum bener bener pin
 
 OutboxMessage
 Sudah tidak lagi digunakan, semua sudah pindah menggunakan hangfire.
+
+
+
+postgresql://postgres:[YOUR-PASSWORD]@db.kfzgfgsvfycazoexxvwh.supabase.co:5432/postgre
