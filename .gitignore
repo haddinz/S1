@@ -73,8 +73,8 @@ TestResults/
 coverage/
 
 # Local Agent Rules
-AGENTS.md
-SHARED-ABSTRACTIONS.md
+# AGENTS.md
+# SHARED-ABSTRACTIONS.md
 
 # .NET Local Tools
 dotnet-tools.json

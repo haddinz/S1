@@ -1,3 +1,11 @@
+> # ⚠️ DOKUMEN INI OUTDATED — JANGAN DIJADIKAN ACUAN
+>
+> Status: Arsip. Sudah ketinggalan dan tidak diupdate.
+> Sumber kebenaran utama adalah kode aktual.
+> Jangan update kecuali diminta user.
+> Jika bertentangan dengan kode, kode yang benar.
+> Untuk konteks dan aturan kerja, baca AGENTS.md.
+
 # System Architecture Blueprint — Support Platform
 
 > **Version:** 1.1
