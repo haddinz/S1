@@ -8,7 +8,7 @@
 >
 > **Jika ada konflik:** ikuti dokumen ini untuk workflow dan batasan kerja; gunakan `ARCHITECTURE.md` untuk memahami gambaran sistem. Jika keduanya tidak menjawab keputusan penting, periksa implementasi dan dokumentasi terkait, lalu tanyakan kepada user jika masih ada ambiguitas material.
 
-> **Status `ARCHITECTURE.md`:** File tersebut masih ada di repository, tetapi sudah ketinggalan (outdated) dan tidak sedang diupdate. Isinya tidak boleh dijadikan acuan utama untuk memahami kondisi sistem saat ini.
+> **Status `ARCHITECTURE.md`:** File tersebut masih ada di repository, tetapi sudah ketinggalan (outdated) dan tidak sedang diupdate. Isinya tidak boleh dibaca dan tidak boleh dijadikan acuan utama untuk memahami kondisi sistem saat ini.
 >
 > - Jangan menganggap isi `ARCHITECTURE.md` sebagai kondisi aktual.
 > - Sumber kebenaran utama adalah kode aktual.
